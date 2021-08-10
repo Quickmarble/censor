@@ -9,6 +9,7 @@ mod graph;
 mod widget;
 mod analyse;
 mod loader;
+mod daemon;
 
 use clap::{Arg, App};
 
@@ -20,12 +21,19 @@ use crate::loader::*;
 // TODO: WASM integration
 // TODO: colour blindness widgets!
 // TODO: image from URL loader
-// TODO: daemon mode
 
 fn main() {
     let matches = App::new("censor")
         .version("0.2.0")
         .about("Palette analysis tool.")
+        .arg(
+            Arg::with_name("daemon")
+                .short("d")
+                .long("daemon")
+                .value_name("PORT")
+                .help("Starts in daemon mode on TCP port PORT")
+                .takes_value(true)
+        )
         .arg(
             Arg::with_name("colours")
                 .short("c")
@@ -72,6 +80,29 @@ fn main() {
     let file_provided = matches.value_of("hexfile").is_some();
     let slug_provided = matches.value_of("lospec").is_some();
     let image_provided = matches.value_of("imagefile").is_some();
+
+    let daemon = matches.value_of("daemon").is_some();
+    if daemon {
+        if list_provided || file_provided || slug_provided || image_provided {
+            eprintln!("Daemon mode conflicts with input sources.");
+            std::process::exit(1);
+        }
+        let port_str = matches.value_of("daemon").unwrap();
+        let port = match u16::from_str_radix(port_str, 10) {
+            Ok(port) => { port }
+            Err(e) => {
+                eprintln!("Error parsing daemon port: {:?}", e);
+                std::process::exit(1);
+            }
+        };
+        match daemon::run(port) {
+            Ok(()) => { std::process::exit(0); }
+            Err(e) => {
+                eprintln!("Daemon error: {:?}", e);
+                std::process::exit(1);
+            }
+        }
+    }
 
     let mut outfile: String = matches.value_of("outfile").unwrap_or("plot.png").into();
     if !outfile.ends_with(".png") {

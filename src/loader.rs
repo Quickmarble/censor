@@ -38,7 +38,8 @@ pub enum LoadError {
     FileRead(std::io::Error),
     NetworkError(ureq::Error),
     InvalidEncoding(std::io::Error),
-    ImageEncoding(image::ImageError)
+    ImageEncoding(image::ImageError),
+    NotFound
 }
 
 pub fn load_from_image(filename: String) -> Result<Vec<RGB255>, LoadError> {
@@ -65,19 +66,19 @@ pub fn load_from_image(filename: String) -> Result<Vec<RGB255>, LoadError> {
 }
 
 pub fn load_from_lospec(slug: String) -> Result<Vec<RGB255>, LoadError> {
-    let url = format!("https://lospec.com/palette-list/{}.hex", slug);
-    let hexdata = ureq::get(&url)
+    let url = format!("https://lospec.com/palette-list/{}.csv", slug);
+    let csv = ureq::get(&url)
         .set("User-Agent", "censor v0.2.0")
         .call().map_err(|e| LoadError::NetworkError(e))?
-        .into_string().map_err(|e| LoadError::InvalidEncoding(e))?
-        .chars()
-        .filter(|&c| c != '\r')
-        .collect::<String>()
-        .split('\n')
-        .filter(|s| s != &"")
-        .map(|s| String::from(s))
-        .collect::<Vec<String>>();
-    return load_from_hex(&hexdata);
+        .into_string().map_err(|e| LoadError::InvalidEncoding(e))?;
+    if csv == "file not found" {
+        return Err(LoadError::NotFound);
+    }
+    let colours = csv.split(',')
+        .skip(2)
+        .map(|s| parse_hex(s.into()))
+        .collect::<Result<Vec<_>, _>>();
+    return colours;
 }
 
 pub fn load_from_file(filename: String) -> Result<Vec<RGB255>, LoadError> {
