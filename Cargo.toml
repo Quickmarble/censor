@@ -6,9 +6,19 @@ license = "MIT"
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[[bin]]
+name = "censor"
+path = "src/main.rs"
 
 [dependencies]
-image = "0.23.14"
 json = "0.12.4"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+image = "0.23.14"
 clap = "2.33.3"
 ureq = "2.1.1"
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+image = { version = "0.23.14", default-features = false, features = ["png"] }
+stdweb = "0.4.20"
+hex = "0.4.3"

@@ -9,8 +9,11 @@ mod graph;
 mod widget;
 mod analyse;
 mod loader;
+#[cfg(not(target_arch = "wasm32"))]
 mod daemon;
+mod web;
 
+#[cfg(not(target_arch = "wasm32"))]
 use clap::{Arg, App};
 
 use crate::text::Font;
@@ -22,6 +25,42 @@ use crate::loader::*;
 // TODO: colour blindness widgets!
 // TODO: image from URL loader
 
+#[cfg(target_arch = "wasm32")]
+fn main() {
+    let hex_list = match web::read_storage("input") {
+        Some(hex_list) => { hex_list }
+        None => {
+            eprintln!("Analyser: couldn't read `input` from session storage");
+            return;
+        }
+    };
+    let hex_list: Vec<String> = hex_list.split(',')
+        .map(|s| String::from(s))
+        .collect();
+    let result = load_from_hex(&hex_list);
+    let colours = match result {
+        Ok(x) => { x }
+        Err(e) => {
+            eprintln!("Error while getting palette: {:?}", e);
+            return;
+        }
+    };
+    match check_palette(&colours) {
+        Ok(_) => {}
+        Err(e) => {
+            eprintln!("Error while validating palette: {:?}", e);
+            return;
+        }
+    }
+
+    let font = Font::new();
+    let mut cacher = PlotCacher::new();
+    let T = 5500.;
+
+    analyse(&colours, T, &mut cacher, &font, "output".into());
+}
+
+#[cfg(not(target_arch = "wasm32"))]
 fn main() {
     let matches = App::new("censor")
         .version("0.2.0")

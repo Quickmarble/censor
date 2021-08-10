@@ -1,3 +1,5 @@
+#[cfg(target_arch = "wasm32")]
+use hex;
 use image::{RgbImage, Rgb};
 
 use crate::text::*;
@@ -281,6 +283,19 @@ impl ImageGraph {
             }
         }
     }
+    #[cfg(target_arch = "wasm32")]
+    pub fn save(&self, name: String) -> Result<(), image::ImageError> {
+        use crate::web;
+        let mut data: Vec<u8> = vec![];
+        let buf: std::io::Cursor<&mut Vec<u8>> = std::io::Cursor::new(&mut data);
+        let encoder = image::codecs::png::PngEncoder::new(buf);
+        let _ = encoder.encode(self.buffer.as_raw(), self.w, self.h, image::ColorType::Rgb8);
+        let data: &Vec<u8> = &data;
+        let encoded = hex::encode(data);
+        web::write_storage(&name, encoded);
+        Ok(())
+    }
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn save(&self, name: String) -> Result<(), image::ImageError> {
         self.buffer.save(name)
     }

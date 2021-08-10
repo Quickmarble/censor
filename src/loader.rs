@@ -1,10 +1,14 @@
+#[cfg(not(target_arch = "wasm32"))]
 use ureq;
+
+#[cfg(not(target_arch = "wasm32"))]
 use image::io::Reader as ImageReader;
 
 use crate::colour::*;
 
 use std::collections::HashSet;
 use std::iter::FromIterator;
+#[cfg(not(target_arch = "wasm32"))]
 use std::io::prelude::*;
 
 #[derive(Clone, Copy, Debug)]
@@ -34,14 +38,21 @@ pub fn check_palette(palette: &Vec<RGB255>) -> Result<(), PaletteCheckError> {
 pub enum LoadError {
     InvalidHexLength,
     NonHexCharacters,
+#[cfg(not(target_arch = "wasm32"))]
     FileOpen(std::io::Error),
+#[cfg(not(target_arch = "wasm32"))]
     FileRead(std::io::Error),
+#[cfg(not(target_arch = "wasm32"))]
     NetworkError(ureq::Error),
+#[cfg(not(target_arch = "wasm32"))]
     InvalidEncoding(std::io::Error),
+#[cfg(not(target_arch = "wasm32"))]
     ImageEncoding(image::ImageError),
+#[cfg(not(target_arch = "wasm32"))]
     NotFound
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 pub fn load_from_image(filename: String) -> Result<Vec<RGB255>, LoadError> {
     let image = ImageReader::open(&filename)
         .map_err(|e| LoadError::FileOpen(e))?
@@ -65,6 +76,7 @@ pub fn load_from_image(filename: String) -> Result<Vec<RGB255>, LoadError> {
     return Ok(colours);
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 pub fn load_from_lospec(slug: String) -> Result<Vec<RGB255>, LoadError> {
     let url = format!("https://lospec.com/palette-list/{}.csv", slug);
     let csv = ureq::get(&url)
@@ -81,6 +93,7 @@ pub fn load_from_lospec(slug: String) -> Result<Vec<RGB255>, LoadError> {
     return colours;
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 pub fn load_from_file(filename: String) -> Result<Vec<RGB255>, LoadError> {
     let mut colours = vec![];
     let file = std::fs::File::open(filename).map_err(|e| LoadError::FileOpen(e))?;
