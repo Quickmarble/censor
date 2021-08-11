@@ -1000,8 +1000,8 @@ impl Widget for NeutralisersWidget {
         let wx1 = if ww <= 12 { 1 } else { 2 };
         let wx2 = if ww <= 12 { 2 } else { 3 };
         for i in 0..palette.n {
-            let i = palette.sorted[i];
             let x = x0 + ww * i as i32;
+            let i = palette.sorted[i];
             let c = palette.cam16[i];
             let j = palette.neutraliser(c);
             let c_neu = palette.cam16[j];
