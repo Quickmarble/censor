@@ -1,9 +1,11 @@
 [package]
-name = "censor"
+name = "censor-analyser"
 version = "0.2.0"
 authors = ["Quickmarble"]
+repository = "https://github.com/Quickmarble/censor"
 description = "Palette analysis tool"
 categories = ["command-line-utilities", "multimedia::images", "visualization"]
+keywords = ["color", "colour", "palette", "tool"]
 license = "MIT"
 readme = "README.md"
 edition = "2018"
