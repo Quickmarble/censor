@@ -1,4 +1,6 @@
 # Censor
+[![Version info](https://img.shields.io/crates/v/censor-analyser.svg)](https://crates.io/crates/censor-analyser)
+
 `censor` is a standalone palette analyser inspired by DawnBringer's Palette Analyser for GrafX2 and having a compatible layout.
 It helps creating and evaluating restricted palettes by providing visualisations and highlighting certain properties.
 
