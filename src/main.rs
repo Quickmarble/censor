@@ -16,6 +16,9 @@ mod web;
 #[cfg(not(target_arch = "wasm32"))]
 use clap::{Arg, App};
 
+#[cfg(target_arch = "wasm32")]
+use stdweb;
+
 use crate::text::Font;
 use crate::cache::PlotCacher;
 use crate::analyse::*;
@@ -27,6 +30,8 @@ use crate::loader::*;
 
 #[cfg(target_arch = "wasm32")]
 fn main() {
+    std::panic::set_hook(Box::new(console_error_panic_hook::hook));
+    stdweb::initialize();
     let hex_list = match web::read_storage("input") {
         Some(hex_list) => { hex_list }
         None => {
