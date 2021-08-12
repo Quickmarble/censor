@@ -11,7 +11,7 @@ It helps creating and evaluating restricted palettes by providing visualisations
 ## Installation
 Install the rust toolchain using `rustup` or the repository. Then run:
 ```
-$ cargo install NOT_PUBLISHED_YET
+$ cargo install censor-analyser
 ```
 
 ## Features
