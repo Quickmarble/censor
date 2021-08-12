@@ -6,7 +6,7 @@ use crate::loader::*;
 use std::io::{BufRead, Write};
 use std::net::{TcpListener, TcpStream};
 
-pub fn run(port: u16) -> std::io::Result<()> {
+pub fn run(port: u16, verbose: bool) -> std::io::Result<()> {
     eprintln!("Starting daemon on port {}", port);
     let listener = TcpListener::bind(&format!("127.0.0.1:{}", port))?;
     
@@ -17,7 +17,7 @@ pub fn run(port: u16) -> std::io::Result<()> {
     for stream in listener.incoming() {
         match stream {
             Ok(stream) => {
-                process(stream, T, &font, &mut cacher);
+                process(stream, T, &font, &mut cacher, verbose);
             }
             Err(e) => {
                 eprintln!("Daemon error: {:?}", e);
@@ -27,7 +27,7 @@ pub fn run(port: u16) -> std::io::Result<()> {
     Ok(())
 }
 
-fn process(mut stream: TcpStream, T: f32, font: &Font, cacher: &mut PlotCacher) {
+fn process(mut stream: TcpStream, T: f32, font: &Font, cacher: &mut PlotCacher, verbose: bool) {
     let reader = match stream.try_clone() {
         Ok(reader) => { reader }
         Err(e) => {
@@ -102,7 +102,7 @@ fn process(mut stream: TcpStream, T: f32, font: &Font, cacher: &mut PlotCacher) 
                     return;
                 }
             }
-            analyse(&colours, T, cacher, font, outfile);
+            analyse(&colours, T, cacher, font, outfile, verbose);
             let _ = stream.write("OK\n".as_bytes());
             return;
         }

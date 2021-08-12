@@ -36,7 +36,6 @@ impl Widget for RectJChWidget {
               _ill: &CAT16Illuminant,
               _font: &Font,
               x0: i32, y0: i32) {
-        eprintln!("RectJCh in progress..."); 
         graph.plot(
             cacher, x0, y0, self.w, self.h,
             palette, &format!("RectJCh:C={:.2}", self.C),
@@ -69,7 +68,6 @@ impl Widget for IndexedWidget {
               _ill: &CAT16Illuminant,
               _font: &Font,
               x0: i32, y0: i32) {
-        eprintln!("Indexed in progress...");
         graph.frame(
             x0, y0,
             self.ww * self.slots_x + 4, self.hh * self.slots_y + 4,
@@ -111,7 +109,6 @@ impl Widget for CloseLiMatchWidget {
               _ill: &CAT16Illuminant,
               _font: &Font,
               x0: i32, y0: i32) {
-        eprintln!("CloseLiMatch in progress...");
         let mut pairs = vec![];
         for i in 0..palette.n {
             for j in i+1..palette.n {
@@ -157,7 +154,6 @@ impl Widget for SpectrumWidget {
               ill: &CAT16Illuminant,
               _font: &Font,
               x0: i32, y0: i32) {
-        eprintln!("Spectrum in progress...");
         let w_spectral = (self.w as f32 * self.ratio) as i32;
         let w_extra = self.w - w_spectral;
         graph.plot(
@@ -225,7 +221,6 @@ impl Widget for SpectroBoxWidget {
               ill: &CAT16Illuminant,
               _font: &Font,
               x0: i32, y0: i32) {
-        eprintln!("SpectroBox in progress...");
         let w_spectral = (self.w as f32 * self.ratio) as i32;
         let w_extra = self.w - w_spectral;
         graph.plot(
@@ -402,7 +397,6 @@ impl Widget for ISSWidget {
               ill: &CAT16Illuminant,
               font: &Font,
               x0: i32, y0: i32) {
-        eprintln!("ISS in progress...");
         let iss = palette.internal_similarity();
         let iss_min = 0.4;
         let barbox = BarBoxWidget::new(
@@ -439,7 +433,6 @@ impl Widget for AcyclicWidget {
               ill: &CAT16Illuminant,
               font: &Font,
               x0: i32, y0: i32) {
-        eprintln!("Acyclic in progress...");
         let acyclic = palette.is_acyclic();
         let yesnobox = YesNoBoxWidget::new(
             self.w, self.h,
@@ -530,7 +523,6 @@ impl Widget for SpectralDistributionWidget {
               ill: &CAT16Illuminant,
               font: &Font,
               x0: i32, y0: i32) {
-        eprintln!("SpectralDistribution in progress...");
         let min = Wavelength::MIN as f32;
         let max = Wavelength::MAX as f32;
         let dist = palette.spectral_stats(ill).iter()
@@ -573,7 +565,6 @@ impl Widget for TemperatureDistributionWidget {
               ill: &CAT16Illuminant,
               font: &Font,
               x0: i32, y0: i32) {
-        eprintln!("TemperatureDistribution in progress...");
         let max = f32::log10(CIEuv::CCT_MAX as f32);
         let min = f32::log10(CIEuv::CCT_MIN as f32);
         let dist = palette.CCT_stats().iter()
@@ -616,7 +607,6 @@ impl Widget for LiMatchGreyscaleWidget {
               _ill: &CAT16Illuminant,
               _font: &Font,
               x0: i32, y0: i32) {
-        eprintln!("LiMatchGreyscale in progress...");
         for i in 0..self.w {
             let x = i as f32 / (self.w as f32 - 1.);
             for j in 0..self.h {
@@ -714,7 +704,6 @@ impl Widget for CAM16IsoCubesWidget {
               ill: &CAT16Illuminant,
               font: &Font,
               x0: i32, y0: i32) {
-        eprintln!("CAM16IsoCubes in progress...");
         let mut points: Vec<_> = (0..palette.n)
             .map(|i| (
                 (palette.cam16[i].a / 200. + 0.5).clip(0., 1.),
@@ -752,7 +741,6 @@ impl Widget for ChromaLightnessHueWidget {
               _ill: &CAT16Illuminant,
               font: &Font,
               x0: i32, y0: i32) {
-        eprintln!("ChromaLightnessHue in progress...");
         let h1 = (self.hh1 - 1) * 3 + 1;
         graph.text("CHR", x0, y0 - 1, TextAnchor::sw(), font, palette.rgb[palette.fg]);
         for i in 0..3 {
@@ -862,7 +850,6 @@ impl Widget for UsefulMixesWidget {
               _ill: &CAT16Illuminant,
               _font: &Font,
               x0: i32, y0: i32) {
-        eprintln!("UsefulMixes in progress...");
         let pairs = palette.useful_mixes((self.xn * self.yn) as usize);
         for xi in 0..self.xn {
             let x = x0 + (self.ww + 1) * xi;
@@ -899,7 +886,6 @@ impl Widget for LightnessChromaComponentsWidget {
               _ill: &CAT16Illuminant,
               font: &Font,
               x0: i32, y0: i32) {
-        eprintln!("LightnessChromaComponents in progress...");
         let hh = (self.h / palette.n as i32).clip(1, 6);
         let n = (self.h + 1) / (hh + 1);
         let w_empty = 4;
@@ -958,7 +944,6 @@ impl Widget for MainPaletteWidget {
               _ill: &CAT16Illuminant,
               _font: &Font,
               x0: i32, y0: i32) {
-        eprintln!("MainPalette in progress...");
         let ww = self.w / palette.n as i32;
         for i in 0..palette.n {
             let x = x0 + ww * i as i32;
@@ -995,7 +980,6 @@ impl Widget for NeutralisersWidget {
               _ill: &CAT16Illuminant,
               _font: &Font,
               x0: i32, y0: i32) {
-        eprintln!("Neutralisers in progress...");
         let ww = self.w / palette.n as i32;
         let wx1 = if ww <= 12 { 1 } else { 2 };
         let wx2 = if ww <= 12 { 2 } else { 3 };
@@ -1029,7 +1013,6 @@ impl Widget for RGB12BitWidget {
               ill: &CAT16Illuminant,
               _font: &Font,
               x0: i32, y0: i32) {
-        eprintln!("RGB12Bit in progress...");
         for g in 0..16 {
             let x = x0 + (g % 8) * 16;
             let y = y0 + (g / 8) * 16;
@@ -1064,7 +1047,6 @@ impl Widget for HueChromaPolarWidget {
               _ill: &CAT16Illuminant,
               _font: &Font,
               x0: i32, y0: i32) {
-        eprintln!("HueChromaPolar in progress...");
         let r = self.d / 2;
         let cx = x0 + r;
         let cy = y0 + r;
@@ -1119,7 +1101,6 @@ impl Widget for HueLightnessPolarFilledWidget {
               _ill: &CAT16Illuminant,
               _font: &Font,
               x0: i32, y0: i32) {
-        eprintln!("HueLightnessPolarFilled in progress...");
         graph.plot_polar(
             cacher, x0, y0, self.d, self.d,
             palette, &format!("HueLightness:d={}:inv={}:C={:.2}", self.d, self.inv, self.C),
@@ -1203,7 +1184,6 @@ impl Widget for ComplementariesWidget {
               _ill: &CAT16Illuminant,
               _font: &Font,
               x0: i32, y0: i32) {
-        eprintln!("Complementaries in progress...");
         let key = format!(
             "Comp:w={}:h={}:a={}:b={}",
             self.w, self.h, self.a as i32, self.b as i32

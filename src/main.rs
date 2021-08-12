@@ -63,7 +63,7 @@ fn main() {
     let mut cacher = PlotCacher::new();
     let T = 5500.;
 
-    analyse(&colours, T, &mut cacher, &font, "output".into());
+    analyse(&colours, T, &mut cacher, &font, "output".into(), true);
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -78,6 +78,12 @@ fn main() {
                 .value_name("PORT")
                 .help("Starts in daemon mode on TCP port PORT")
                 .takes_value(true)
+        )
+        .arg(
+            Arg::with_name("verbose")
+                .short("v")
+                .long("verbose")
+                .help("Prints debugging output")
         )
         .arg(
             Arg::with_name("colours")
@@ -126,6 +132,8 @@ fn main() {
     let slug_provided = matches.value_of("lospec").is_some();
     let image_provided = matches.value_of("imagefile").is_some();
 
+    let verbose = matches.is_present("verbose");
+
     let daemon = matches.value_of("daemon").is_some();
     if daemon {
         if list_provided || file_provided || slug_provided || image_provided {
@@ -140,7 +148,7 @@ fn main() {
                 std::process::exit(1);
             }
         };
-        match daemon::run(port) {
+        match daemon::run(port, verbose) {
             Ok(()) => { std::process::exit(0); }
             Err(e) => {
                 eprintln!("Daemon error: {:?}", e);
@@ -162,7 +170,7 @@ fn main() {
 
     match (list_provided, file_provided, slug_provided, image_provided) {
         (false, false, false, false) => {
-            eprintln!("No inputs were specified, aborting...");
+            eprintln!("{}", matches.usage());
             std::process::exit(1);
         }
         (true, false, false, false) => {
@@ -178,6 +186,7 @@ fn main() {
         }
         (false, false, true, false) => {
             let slug = matches.value_of("lospec").unwrap();
+            if verbose { eprintln!("Downloading palette..."); }
             result = load_from_lospec(slug.into());
         }
         (false, false, false, true) => {
@@ -203,5 +212,5 @@ fn main() {
             std::process::exit(1);
         }
     }
-    analyse(&colours, T, &mut cacher, &font, outfile);
+    analyse(&colours, T, &mut cacher, &font, outfile, verbose);
 }

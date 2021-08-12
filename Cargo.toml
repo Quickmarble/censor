@@ -1,6 +1,6 @@
 [package]
 name = "censor-analyser"
-version = "0.2.1"
+version = "0.2.2"
 authors = ["Quickmarble"]
 repository = "https://github.com/Quickmarble/censor"
 description = "Palette analysis tool"

@@ -8,8 +8,11 @@ use crate::metadata;
 
 use std::f32::consts::PI;
 
-pub fn analyse(colours: &Vec<RGB255>, T: f32, cacher: &mut PlotCacher, font: &Font, fname: String) {
-    eprintln!("Starting analysis.");
+pub fn analyse(
+            colours: &Vec<RGB255>, T: f32,
+            cacher: &mut PlotCacher, font: &Font,
+            fname: String, verbose: bool) {
+    if verbose { eprintln!("Starting analysis."); }
     let ill = CAT16Illuminant::new(CIExy::from_T(T));
     let palette = Palette::new(colours.clone(), &ill);
 
@@ -18,7 +21,7 @@ pub fn analyse(colours: &Vec<RGB255>, T: f32, cacher: &mut PlotCacher, font: &Fo
 
     let mut graph = ImageGraph::new(w as u32, h as u32);
     graph.block(0, 0, w, h, palette.rgb[palette.bg]);
-    eprintln!("Created the canvas.");
+    if verbose { eprintln!("Created the canvas."); }
 
     let inner_x = 17;
     let inner_y = 16;
@@ -50,6 +53,7 @@ pub fn analyse(colours: &Vec<RGB255>, T: f32, cacher: &mut PlotCacher, font: &Fo
                    x, inner_y - 1, TextAnchor::sw(), font,
                    palette.rgb[palette.bl]);
         let rect_JCh = RectJChWidget::new(rect_JCh_w, rect_JCh_h, C as f32);
+        if verbose { eprintln!("RectJCh in progress..."); }
         rect_JCh.render(&mut graph, cacher, &palette, &ill, font, x, y);
     }
 
@@ -66,6 +70,7 @@ pub fn analyse(colours: &Vec<RGB255>, T: f32, cacher: &mut PlotCacher, font: &Fo
                inner_x - 1, spectrum_y + 1 + (spectrum_h + 1) * 2, TextAnchor::ne(), font,
                palette.rgb[palette.bl]);
     let spectrum = SpectrumWidget::new(spectrum_w, spectrum_h);
+    if verbose { eprintln!("Spectrum in progress..."); }
     spectrum.render(&mut graph, cacher, &palette, &ill, font, inner_x + 1, spectrum_y);
 
     let spectrobox_y = inner_y + 123;
@@ -78,6 +83,7 @@ pub fn analyse(colours: &Vec<RGB255>, T: f32, cacher: &mut PlotCacher, font: &Fo
                inner_x - 1, spectrobox_y + 1 + spectrobox_h / 2 + 3, TextAnchor::e(), font,
                palette.rgb[palette.bl]);
     let spectrobox = SpectroBoxWidget::new(spectrobox_w, spectrobox_h);
+    if verbose { eprintln!("SpectroBox in progress..."); }
     spectrobox.render(&mut graph, cacher, &palette, &ill, font, inner_x + 1, spectrobox_y);
 
     let indexed_x = inner_x + 203;
@@ -86,6 +92,7 @@ pub fn analyse(colours: &Vec<RGB255>, T: f32, cacher: &mut PlotCacher, font: &Fo
                indexed_x, inner_y - 1, TextAnchor::sw(), font,
                palette.rgb[palette.bl]);
     let indexed = IndexedWidget::new(32, 8, 3, 4);
+    if verbose { eprintln!("Indexed in progress..."); }
     indexed.render(&mut graph, cacher, &palette, &ill, font, indexed_x, indexed_y);
 
     let close_n = 10;
@@ -97,6 +104,7 @@ pub fn analyse(colours: &Vec<RGB255>, T: f32, cacher: &mut PlotCacher, font: &Fo
                close_x + close_w / 2, close10_y, TextAnchor::s(), font,
                palette.rgb[palette.fg]);
     let close10 = CloseLiMatchWidget::new(close_d, close_d, close_n as usize, 0.1);
+    if verbose { eprintln!("CloseLiMatch in progress..."); }
     close10.render(&mut graph, cacher, &palette, &ill, font, close_x, close10_y);
 
     let close70_y = close10_y + close_d * 2 + 2;
@@ -104,6 +112,7 @@ pub fn analyse(colours: &Vec<RGB255>, T: f32, cacher: &mut PlotCacher, font: &Fo
                close_x + close_w / 2, close70_y + close_d * 2 + 1, TextAnchor::n(), font,
                palette.rgb[palette.fg]);
     let close70 = CloseLiMatchWidget::new(close_d, close_d, close_n as usize, 0.7);
+    if verbose { eprintln!("CloseLiMatch in progress..."); }
     close70.render(&mut graph, cacher, &palette, &ill, font, close_x, close70_y);
 
     let iss_x = inner_x + 203;
@@ -111,6 +120,7 @@ pub fn analyse(colours: &Vec<RGB255>, T: f32, cacher: &mut PlotCacher, font: &Fo
     let iss_w = 44;
     let iss_h = 24;
     let iss = ISSWidget::new(iss_w, iss_h, 2., 3.5);
+    if verbose { eprintln!("ISS in progress..."); }
     iss.render(&mut graph, cacher, &palette, &ill, font, iss_x, iss_y);
 
     let acyclic_x = inner_x + 259;
@@ -118,6 +128,7 @@ pub fn analyse(colours: &Vec<RGB255>, T: f32, cacher: &mut PlotCacher, font: &Fo
     let acyclic_w = 44;
     let acyclic_h = 24;
     let acyclic = AcyclicWidget::new(acyclic_w, acyclic_h);
+    if verbose { eprintln!("Acyclic in progress..."); }
     acyclic.render(&mut graph, cacher, &palette, &ill, font, acyclic_x, acyclic_y);
 
     let sdist_x = inner_x + 203;
@@ -128,6 +139,7 @@ pub fn analyse(colours: &Vec<RGB255>, T: f32, cacher: &mut PlotCacher, font: &Fo
                sdist_x + sdist_w / 2, sdist_y, TextAnchor::s(), font,
                palette.rgb[palette.fg]);
     let sdist = SpectralDistributionWidget::new(sdist_w, sdist_h);
+    if verbose { eprintln!("SpectralDistribution in progress..."); }
     sdist.render(&mut graph, cacher, &palette, &ill, font, sdist_x, sdist_y);
 
     let tdist_x = inner_x + 203;
@@ -138,6 +150,7 @@ pub fn analyse(colours: &Vec<RGB255>, T: f32, cacher: &mut PlotCacher, font: &Fo
                tdist_x + tdist_w / 2, tdist_y - 1, TextAnchor::s(), font,
                palette.rgb[palette.fg]);
     let tdist = TemperatureDistributionWidget::new(tdist_w, tdist_h);
+    if verbose { eprintln!("TemperatureDistribution in progress..."); }
     tdist.render(&mut graph, cacher, &palette, &ill, font, tdist_x, tdist_y);
 
     let limatch_x = inner_x + 305;
@@ -147,6 +160,7 @@ pub fn analyse(colours: &Vec<RGB255>, T: f32, cacher: &mut PlotCacher, font: &Fo
                limatch_x + limatch_w / 2, inner_y - 1, TextAnchor::s(), font,
                palette.rgb[palette.bl]);
     let limatch = LiMatchGreyscaleWidget::new(limatch_w, limatch_h);
+    if verbose { eprintln!("LiMatchGreyscale in progress..."); }
     limatch.render(&mut graph, cacher, &palette, &ill, font, limatch_x, inner_y + 1);
 
     let isocubes_x = inner_x + 355;
@@ -156,6 +170,7 @@ pub fn analyse(colours: &Vec<RGB255>, T: f32, cacher: &mut PlotCacher, font: &Fo
                isocubes_x + isocubes_ww + isocubes_dx / 2, inner_y - 1, TextAnchor::s(), font,
                palette.rgb[palette.bl]);
     let isocubes = CAM16IsoCubesWidget::new(isocubes_ww, isocubes_dx);
+    if verbose { eprintln!("CAM16IsoCubes in progress..."); }
     isocubes.render(&mut graph, cacher, &palette, &ill, font, isocubes_x, inner_y + 1);
 
     let chrlihue_x = inner_x + 352;
@@ -165,6 +180,7 @@ pub fn analyse(colours: &Vec<RGB255>, T: f32, cacher: &mut PlotCacher, font: &Fo
     let chrlihue_w2 = 130;
     let chrlihue_h2 = 109;
     let chrlihue = ChromaLightnessHueWidget::new(chrlihue_w1, chrlihue_hh1, chrlihue_w2, chrlihue_h2);
+    if verbose { eprintln!("ChromaLightnessHue in progress..."); }
     chrlihue.render(&mut graph, cacher, &palette, &ill, font, chrlihue_x, chrlihue_y);
 
     let comps_x = inner_x + 533;
@@ -188,6 +204,7 @@ pub fn analyse(colours: &Vec<RGB255>, T: f32, cacher: &mut PlotCacher, font: &Fo
                     HorizontalTextAnchor::Center, font,
                     palette.rgb[palette.bl]);
         let mixes = UsefulMixesWidget::new(mixes_xn, mixes_yn, mixes_ww, mixes_hh);
+        if verbose { eprintln!("UsefulMixes in progress..."); }
         mixes.render(&mut graph, cacher, &palette, &ill, font, mixes_x, inner_y + 1);
     }
 
@@ -198,6 +215,7 @@ pub fn analyse(colours: &Vec<RGB255>, T: f32, cacher: &mut PlotCacher, font: &Fo
         palette.rgb[palette.bl]
     );
     let comps = LightnessChromaComponentsWidget::new(comps_w, comps_h);
+    if verbose { eprintln!("LightnessChromaComponents in progress..."); }
     comps.render(&mut graph, cacher, &palette, &ill, font, comps_x, comps_y);
 
     let mainpal_y = inner_y + 234;
@@ -207,6 +225,7 @@ pub fn analyse(colours: &Vec<RGB255>, T: f32, cacher: &mut PlotCacher, font: &Fo
                inner_x - 1, mainpal_y + 2, TextAnchor::ne(), font,
                palette.rgb[palette.bl]);
     let mainpal = MainPaletteWidget::new(mainpal_w, mainpal_h);
+    if verbose { eprintln!("MainPalette in progress..."); }
     mainpal.render(&mut graph, cacher, &palette, &ill, font, inner_x + 1, mainpal_y);
 
     if palette.n <= 64 {
@@ -221,6 +240,7 @@ pub fn analyse(colours: &Vec<RGB255>, T: f32, cacher: &mut PlotCacher, font: &Fo
                    inner_x - 1, neu_y + 7, TextAnchor::ne(), font,
                    palette.rgb[palette.bl]);
         let neu = NeutralisersWidget::new(neu_w, neu_h1, neu_h2);
+        if verbose { eprintln!("Neutralisers in progress..."); }
         neu.render(&mut graph, cacher, &palette, &ill, font, inner_x + 1, neu_y);
     }
 
@@ -229,6 +249,7 @@ pub fn analyse(colours: &Vec<RGB255>, T: f32, cacher: &mut PlotCacher, font: &Fo
                inner_x + 1, rgb12bit_y - 1, TextAnchor::sw(), font,
                palette.rgb[palette.fg]);
     let rgb12bit = RGB12BitWidget {};
+    if verbose { eprintln!("RGB12Bit in progress..."); }
     rgb12bit.render(&mut graph, cacher, &palette, &ill, font, inner_x + 1, rgb12bit_y);
 
     let huechroma_x = inner_x + 8;
@@ -238,6 +259,7 @@ pub fn analyse(colours: &Vec<RGB255>, T: f32, cacher: &mut PlotCacher, font: &Fo
                huechroma_x + huechroma_d / 2, inner_y + inner_h + 1, TextAnchor::n(), font,
                palette.rgb[palette.bl]);
     let huechroma = HueChromaPolarWidget::new(huechroma_d);
+    if verbose { eprintln!("HueChromaPolar in progress..."); }
     huechroma.render(&mut graph, cacher, &palette, &ill, font, huechroma_x, huechroma_y);
 
     let hueli_x = inner_x + 137;
@@ -252,6 +274,7 @@ pub fn analyse(colours: &Vec<RGB255>, T: f32, cacher: &mut PlotCacher, font: &Fo
     let hueli = HueLightnessPolarFilledGroupWidget::new(
         hueli_C_low, hueli_C_high, hueli_d_small, hueli_d_big
     );
+    if verbose { eprintln!("HueLightnessPolarFilled in progress..."); }
     hueli.render(&mut graph, cacher, &palette, &ill, font, hueli_x, hueli_y);
 
     let comp_x = inner_x + 296;
@@ -285,10 +308,11 @@ pub fn analyse(colours: &Vec<RGB255>, T: f32, cacher: &mut PlotCacher, font: &Fo
                        x, y - 7,
                        TextAnchor::nw(), font, palette.rgb[palette.fg]);
             let comp = ComplementariesWidget::new(a, b, comp_d, comp_d);
+            if verbose { eprintln!("Complementaries in progress..."); }
             comp.render(&mut graph, cacher, &palette, &ill, font, x, y);
         }
     }
 
-    eprintln!("Saving...");
+    if verbose { eprintln!("Saving..."); }
     graph.save(fname).unwrap();
 }
