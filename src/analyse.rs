@@ -4,6 +4,7 @@ use crate::text::*;
 use crate::graph::*;
 use crate::cache::PlotCacher;
 use crate::widget::*;
+use crate::metadata;
 
 use std::f32::consts::PI;
 
@@ -25,7 +26,7 @@ pub fn analyse(colours: &Vec<RGB255>, T: f32, cacher: &mut PlotCacher, font: &Fo
     let inner_h = 406;
     graph.block(inner_x, inner_y, inner_w, inner_h, palette.rgb[palette.bl]);
 
-    graph.text("= CENSOR v0.2 - PALETTE ANALYSER =",
+    graph.text(&format!("= CENSOR v{} - PALETTE ANALYSER =", metadata::VERSION),
                w / 2, 2, TextAnchor::n(), font,
                palette.rgb[palette.tl]);
     graph.text(&format!("Unique colours in palette: {}", palette.n),

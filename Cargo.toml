@@ -1,6 +1,6 @@
 [package]
 name = "censor-analyser"
-version = "0.2.0"
+version = "0.2.1"
 authors = ["Quickmarble"]
 repository = "https://github.com/Quickmarble/censor"
 description = "Palette analysis tool"
@@ -17,6 +17,7 @@ path = "src/main.rs"
 
 [dependencies]
 json = "0.12.4"
+const_format = "0.2.17"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 image = "0.23.14"

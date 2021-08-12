@@ -12,6 +12,7 @@ mod loader;
 #[cfg(not(target_arch = "wasm32"))]
 mod daemon;
 mod web;
+mod metadata;
 
 #[cfg(not(target_arch = "wasm32"))]
 use clap::{Arg, App};
@@ -68,7 +69,7 @@ fn main() {
 #[cfg(not(target_arch = "wasm32"))]
 fn main() {
     let matches = App::new("censor")
-        .version("0.2.0")
+        .version(metadata::VERSION)
         .about("Palette analysis tool.")
         .arg(
             Arg::with_name("daemon")

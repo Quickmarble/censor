@@ -5,6 +5,7 @@ use ureq;
 use image::io::Reader as ImageReader;
 
 use crate::colour::*;
+use crate::metadata;
 
 use std::collections::HashSet;
 use std::iter::FromIterator;
@@ -80,7 +81,7 @@ pub fn load_from_image(filename: String) -> Result<Vec<RGB255>, LoadError> {
 pub fn load_from_lospec(slug: String) -> Result<Vec<RGB255>, LoadError> {
     let url = format!("https://lospec.com/palette-list/{}.csv", slug);
     let csv = ureq::get(&url)
-        .set("User-Agent", "censor v0.2.0")
+        .set("User-Agent", &format!("censor v{}", metadata::VERSION))
         .call().map_err(|e| LoadError::NetworkError(e))?
         .into_string().map_err(|e| LoadError::InvalidEncoding(e))?;
     if csv == "file not found" {
