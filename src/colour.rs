@@ -576,10 +576,10 @@ impl CAM16UCS {
     }
     pub fn mix(one: Self, another: Self, a: f32) -> Self {
         Self {
-            J: f32::lerp(one.J, another.J, a),
-            a: f32::lerp(one.a, another.a, a),
-            b: f32::lerp(one.b, another.b, a),
-            C: f32::lerp(one.C, another.C, a)
+            J: f32::interpolate(one.J, another.J, a),
+            a: f32::interpolate(one.a, another.a, a),
+            b: f32::interpolate(one.b, another.b, a),
+            C: f32::interpolate(one.C, another.C, a)
         }
     }
 }

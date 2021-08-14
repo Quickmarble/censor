@@ -15,7 +15,7 @@ mod web;
 mod metadata;
 
 #[cfg(not(target_arch = "wasm32"))]
-use clap::{Arg, App};
+use clap::{Arg, App, SubCommand, ArgGroup};
 
 #[cfg(target_arch = "wasm32")]
 use stdweb;
@@ -68,94 +68,102 @@ fn main() {
 
 #[cfg(not(target_arch = "wasm32"))]
 fn main() {
-    let matches = App::new("censor")
+    let app = App::new("censor")
         .version(metadata::VERSION)
         .about("Palette analysis tool.")
-        .arg(
-            Arg::with_name("daemon")
-                .short("d")
-                .long("daemon")
-                .value_name("PORT")
-                .help("Starts in daemon mode on TCP port PORT")
-                .takes_value(true)
+        .subcommand(SubCommand::with_name("daemon")
+            .about("Starts in daemon mode.")
+            .arg(
+                Arg::with_name("verbose")
+                    .short("v")
+                    .long("verbose")
+                    .help("Prints debugging output")
+            )
+            .arg(
+                Arg::with_name("port")
+                    .short("p")
+                    .long("port")
+                    .value_name("PORT")
+                    .help("The port exposed by the daemon")
+                    .takes_value(true)
+                    .required(true)
+            )
         )
-        .arg(
-            Arg::with_name("verbose")
-                .short("v")
-                .long("verbose")
-                .help("Prints debugging output")
-        )
-        .arg(
-            Arg::with_name("colours")
-                .short("c")
-                .long("colours")
-                .value_name("LIST")
-                .help("Sets input colours to the specified list of comma-separated hex values")
-                .takes_value(true)
-        )
-        .arg(
-            Arg::with_name("hexfile")
-                .short("f")
-                .long("hexfile")
-                .value_name("FILE")
-                .help("Reads input colours from the specified file with newline-separated hex values")
-                .takes_value(true)
-        )
-        .arg(
-            Arg::with_name("imagefile")
-                .short("i")
-                .long("image")
-                .value_name("FILE")
-                .help("Reads input colours from the specified image")
-                .takes_value(true)
-        )
-        .arg(
-            Arg::with_name("lospec")
-                .short("l")
-                .long("lospec")
-                .value_name("SLUG")
-                .help("Loads input colours from https://lospec.com/palette-list/SLUG")
-                .takes_value(true)
-        )
-        .arg(
-            Arg::with_name("outfile")
-                .short("o")
-                .long("out")
-                .value_name("FILE")
-                .help("Sets output image file; default: plot.png")
-                .takes_value(true)
-        )
-        .get_matches();
+        .subcommand(SubCommand::with_name("analyse")
+            .about("Produces a plot with palette analysis.")
+            .arg(
+                Arg::with_name("verbose")
+                    .short("v")
+                    .long("verbose")
+                    .help("Prints debugging output")
+            )
+            .group(ArgGroup::with_name("input")
+                .multiple(false)
+                .required(true)
+                .args(&["colours", "hexfile", "imagefile", "lospec"])
+            )
+            .arg(
+                Arg::with_name("colours")
+                    .short("c")
+                    .long("colours")
+                    .value_name("LIST")
+                    .help("Sets input colours to the specified list of comma-separated hex values")
+                    .takes_value(true)
+            )
+            .arg(
+                Arg::with_name("hexfile")
+                    .short("f")
+                    .long("hexfile")
+                    .value_name("FILE")
+                    .help("Reads input colours from the specified file with newline-separated hex values")
+                    .takes_value(true)
+            )
+            .arg(
+                Arg::with_name("imagefile")
+                    .short("i")
+                    .long("image")
+                    .value_name("FILE")
+                    .help("Reads input colours from the specified image")
+                    .takes_value(true)
+            )
+            .arg(
+                Arg::with_name("lospec")
+                    .short("l")
+                    .long("lospec")
+                    .value_name("SLUG")
+                    .help("Loads input colours from https://lospec.com/palette-list/SLUG")
+                    .takes_value(true)
+            )
+            .arg(
+                Arg::with_name("outfile")
+                    .short("o")
+                    .long("out")
+                    .value_name("FILE")
+                    .help("Sets output image file; default: plot.png")
+                    .takes_value(true)
+            )
+        );
+    let matches = app.get_matches();
 
+    if let Some(matches) = matches.subcommand_matches("analyse") {
+        main_analyse(matches);
+        return;
+    }
+    if let Some(matches) = matches.subcommand_matches("daemon") {
+        main_daemon(matches);
+        return;
+    }
+    eprintln!("{}", matches.usage());
+    std::process::exit(1);
+}
+
+fn main_analyse<'a>(matches: &clap::ArgMatches<'a>) {
     let list_provided = matches.value_of("colours").is_some();
     let file_provided = matches.value_of("hexfile").is_some();
     let slug_provided = matches.value_of("lospec").is_some();
     let image_provided = matches.value_of("imagefile").is_some();
 
     let verbose = matches.is_present("verbose");
-
-    let daemon = matches.value_of("daemon").is_some();
-    if daemon {
-        if list_provided || file_provided || slug_provided || image_provided {
-            eprintln!("Daemon mode conflicts with input sources.");
-            std::process::exit(1);
-        }
-        let port_str = matches.value_of("daemon").unwrap();
-        let port = match u16::from_str_radix(port_str, 10) {
-            Ok(port) => { port }
-            Err(e) => {
-                eprintln!("Error parsing daemon port: {:?}", e);
-                std::process::exit(1);
-            }
-        };
-        match daemon::run(port, verbose) {
-            Ok(()) => { std::process::exit(0); }
-            Err(e) => {
-                eprintln!("Daemon error: {:?}", e);
-                std::process::exit(1);
-            }
-        }
-    }
 
     let mut outfile: String = matches.value_of("outfile").unwrap_or("plot.png").into();
     if !outfile.ends_with(".png") {
@@ -169,10 +177,6 @@ fn main() {
     let result;
 
     match (list_provided, file_provided, slug_provided, image_provided) {
-        (false, false, false, false) => {
-            eprintln!("{}", matches.usage());
-            std::process::exit(1);
-        }
         (true, false, false, false) => {
             let hex_list = matches.value_of("colours").unwrap();
             let hex_list = hex_list.split(',')
@@ -194,7 +198,7 @@ fn main() {
             result = load_from_image(filename.into());
         }
         _ => {
-            eprintln!("Two or more conflicting inputs were specified, aborting...");
+            eprintln!("Impossible happened! Blame the `clap` library. Report this error.");
             std::process::exit(1);
         }
     }
@@ -213,4 +217,24 @@ fn main() {
         }
     }
     analyse(&colours, T, &mut cacher, &font, outfile, verbose);
+}
+
+fn main_daemon<'a>(matches: &clap::ArgMatches<'a>) {
+    let verbose = matches.is_present("verbose");
+
+    let port_str = matches.value_of("port").unwrap();
+    let port = match u16::from_str_radix(port_str, 10) {
+        Ok(port) => { port }
+        Err(e) => {
+            eprintln!("Error parsing daemon port: {:?}", e);
+            std::process::exit(1);
+        }
+    };
+    match daemon::run(port, verbose) {
+        Ok(()) => { std::process::exit(0); }
+        Err(e) => {
+            eprintln!("Daemon error: {:?}", e);
+            std::process::exit(1);
+        }
+    }
 }

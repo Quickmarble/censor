@@ -40,12 +40,12 @@ impl<T> CyclicClip for T
 }
 
 pub trait Lerp {
-    fn lerp(self, another: Self, a: f32) -> Self;
+    fn interpolate(self, another: Self, a: f32) -> Self;
 }
 impl<T> Lerp for T
         where T: Copy + std::cmp::PartialOrd
         + std::ops::Add<Output=T> + std::ops::Mul<f32, Output=T> {
-    fn lerp(self, another: Self, a: f32) -> Self {
+    fn interpolate(self, another: Self, a: f32) -> Self {
         return self * (1.-a) + another * a;
     }
 }

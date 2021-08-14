@@ -1,3 +1,5 @@
+use escape_string;
+
 use crate::text::Font;
 use crate::cache::PlotCacher;
 use crate::analyse::*;
@@ -45,20 +47,28 @@ fn process(mut stream: TcpStream, T: f32, font: &Font, cacher: &mut PlotCacher, 
         }
     }
     let buf = buf.split('\n').next().unwrap_or("");
-    let cmd: Vec<&str> = buf.split(' ').collect();
+    let split = escape_string::split(buf);
+    if let None = split {
+        eprintln!("Errors in input.");
+        let _ = stream.write("ERR\n".as_bytes());
+        return;
+    }
+    let cmd: Vec<String> = split.unwrap().into_iter()
+        .map(|x| x.into_owned())
+        .collect();
     if cmd.len() == 0 {
         eprintln!("Empty input.");
         let _ = stream.write("ERR\n".as_bytes());
         return;
     }
-    match cmd[0] {
+    match cmd[0].as_str() {
         "analyse" => {
             if cmd.len() != 3 {
                 eprintln!("Invalid number of arguments: {}.", buf);
                 let _ = stream.write("ERR\n".as_bytes());
                 return;
             }
-            let outfile: String = cmd[2].into();
+            let outfile: String = cmd[2].clone();
             let src: Vec<&str> = cmd[1].split("://").collect();
             if src.len() != 2 {
                 eprintln!("Invalid source: {}", cmd[1]);

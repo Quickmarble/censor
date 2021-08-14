@@ -232,9 +232,9 @@ impl Widget for SpectroBoxWidget {
                     + x * (Wavelength::MAX as f32 - Wavelength::MIN as f32);
                 let c = CAM16UCS::of(Wavelength::new(wl).into(), ill);
                 let J = if t < 0. {
-                    f32::lerp(c.J, 0., -t)
+                    f32::interpolate(c.J, 0., -t)
                 } else {
-                    f32::lerp(c.J, 100., t)
+                    f32::interpolate(c.J, 100., t)
                 };
                 // incorrect, maybe replace later
                 let C = f32::hypot(c.a, c.b) * (1. - t * t) / 100.;
@@ -252,9 +252,9 @@ impl Widget for SpectroBoxWidget {
                 let t = 2. * y - 1.;
                 let c = CAM16UCS::mix(max, min, x);
                 let J = if t < 0. {
-                    f32::lerp(c.J, 0., -t)
+                    f32::interpolate(c.J, 0., -t)
     } else {
-                    f32::lerp(c.J, 100., t)
+                    f32::interpolate(c.J, 100., t)
                 };
                 // incorrect, maybe replace later
                 let C = f32::hypot(c.a, c.b) * (1. - t * t) / 100.;
