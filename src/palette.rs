@@ -260,7 +260,11 @@ impl Palette {
                 }
             }
         }
-        let score = mean / min;
-        return score / (self.n as f32).powf(2./3.);
+        if min > 0. {
+            let score = mean / min;
+            return score / (self.n as f32).powf(2./3.);
+        } else {
+            return f32::NAN;
+        }
     }
 }

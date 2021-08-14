@@ -38,6 +38,13 @@ Analyse a palette from lospec.com `aurora`:
 ```
 $ censor analyse -l aurora
 ```
+### `censor compute`
+Palette input options are the same as for `censor analyse`.
+In addition, there are options for specifying which metrics should be
+computed.
+`-a, --all` activates all the metrics.
+There are also flags for individual metrics (see the help page).
+The output is formatted in csv to be script-friendly.
 ### `censor daemon`
 Start daemon mode on port `8008`:
 ```

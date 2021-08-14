@@ -20,10 +20,14 @@ use clap::{Arg, App, SubCommand, ArgGroup};
 #[cfg(target_arch = "wasm32")]
 use stdweb;
 
+use crate::colour::*;
+use crate::palette::*;
 use crate::text::Font;
 use crate::cache::PlotCacher;
 use crate::analyse::*;
 use crate::loader::*;
+
+use std::collections::HashMap;
 
 // TODO: WASM integration
 // TODO: colour blindness widgets!
@@ -142,6 +146,67 @@ fn main() {
                     .help("Sets output image file; default: plot.png")
                     .takes_value(true)
             )
+        )
+        .subcommand(SubCommand::with_name("compute")
+            .about("Computes palette metrics.")
+            .group(ArgGroup::with_name("input")
+                .multiple(false)
+                .required(true)
+                .args(&["colours", "hexfile", "imagefile", "lospec"])
+            )
+            .arg(
+                Arg::with_name("colours")
+                    .short("c")
+                    .long("colours")
+                    .value_name("LIST")
+                    .help("Sets input colours to the specified list of comma-separated hex values")
+                    .takes_value(true)
+            )
+            .arg(
+                Arg::with_name("hexfile")
+                    .short("f")
+                    .long("hexfile")
+                    .value_name("FILE")
+                    .help("Reads input colours from the specified file with newline-separated hex values")
+                    .takes_value(true)
+            )
+            .arg(
+                Arg::with_name("imagefile")
+                    .short("i")
+                    .long("image")
+                    .value_name("FILE")
+                    .help("Reads input colours from the specified image")
+                    .takes_value(true)
+            )
+            .arg(
+                Arg::with_name("lospec")
+                    .short("l")
+                    .long("lospec")
+                    .value_name("SLUG")
+                    .help("Loads input colours from https://lospec.com/palette-list/SLUG")
+                    .takes_value(true)
+            )
+            .group(ArgGroup::with_name("metrics")
+                .multiple(true)
+                .required(true)
+                .args(&["all", "iss", "acyclic"])
+            )
+            .arg(
+                Arg::with_name("all")
+                    .short("a")
+                    .long("all")
+                    .help("Computes all the metrics")
+            )
+            .arg(
+                Arg::with_name("iss")
+                    .long("iss")
+                    .help("Computes internal similarity score")
+            )
+            .arg(
+                Arg::with_name("acyclic")
+                    .long("acyclic")
+                    .help("Checks is a palette is acyclic")
+            )
         );
     let matches = app.get_matches();
 
@@ -153,26 +218,20 @@ fn main() {
         main_daemon(matches);
         return;
     }
-    eprintln!("{}", matches.usage());
+    if let Some(matches) = matches.subcommand_matches("compute") {
+        main_compute(matches);
+        return;
+    }
+    eprintln!("Usage information:");
+    eprintln!("\tcensor --help");
     std::process::exit(1);
 }
 
-fn main_analyse<'a>(matches: &clap::ArgMatches<'a>) {
+fn palette_from_cmd<'a>(matches: &clap::ArgMatches<'a>, verbose: bool) -> Vec<RGB255> {
     let list_provided = matches.value_of("colours").is_some();
     let file_provided = matches.value_of("hexfile").is_some();
     let slug_provided = matches.value_of("lospec").is_some();
     let image_provided = matches.value_of("imagefile").is_some();
-
-    let verbose = matches.is_present("verbose");
-
-    let mut outfile: String = matches.value_of("outfile").unwrap_or("plot.png").into();
-    if !outfile.ends_with(".png") {
-        outfile = format!("{}.png", outfile);
-    }
-
-    let font = Font::new();
-    let mut cacher = PlotCacher::new();
-    let T = 5500.;
 
     let result;
 
@@ -209,6 +268,23 @@ fn main_analyse<'a>(matches: &clap::ArgMatches<'a>) {
             std::process::exit(1);
         }
     };
+    return colours;
+}
+
+fn main_analyse<'a>(matches: &clap::ArgMatches<'a>) {
+    let verbose = matches.is_present("verbose");
+
+    let mut outfile: String = matches.value_of("outfile").unwrap_or("plot.png").into();
+    if !outfile.ends_with(".png") {
+        outfile = format!("{}.png", outfile);
+    }
+
+    let font = Font::new();
+    let mut cacher = PlotCacher::new();
+    let T = 5500.;
+
+    let colours = palette_from_cmd(matches, verbose);
+
     match check_palette(&colours) {
         Ok(_) => {}
         Err(e) => {
@@ -216,6 +292,7 @@ fn main_analyse<'a>(matches: &clap::ArgMatches<'a>) {
             std::process::exit(1);
         }
     }
+
     analyse(&colours, T, &mut cacher, &font, outfile, verbose);
 }
 
@@ -235,6 +312,44 @@ fn main_daemon<'a>(matches: &clap::ArgMatches<'a>) {
         Err(e) => {
             eprintln!("Daemon error: {:?}", e);
             std::process::exit(1);
+        }
+    }
+}
+
+fn main_compute<'a>(matches: &clap::ArgMatches<'a>) {
+    let T = 5500.;
+    let ill = CAT16Illuminant::new(CIExy::from_T(T));
+
+    let colours = palette_from_cmd(matches, false);
+    let palette = Palette::new(colours.clone(), &ill);
+
+    let metrics = ["iss", "acyclic"];
+
+    let mut enabled = HashMap::<&str, bool>::new();
+    for metric in metrics {
+        enabled.insert(metric, matches.is_present(metric));
+    }
+    if matches.is_present("all") {
+        for metric in metrics {
+            enabled.insert(metric, true);
+        }
+    }
+
+    for metric in metrics {
+        if enabled[metric] {
+            let v: String;
+            match metric {
+                "iss" => {
+                    let iss = palette.internal_similarity();
+                    v = format!("{:.2}", iss);
+                }
+                "acyclic" => {
+                    let acyclic = palette.is_acyclic();
+                    v = format!("{}", acyclic);
+                }
+                _ => { continue; }
+            };
+            println!("{},{}", metric, v);
         }
     }
 }
