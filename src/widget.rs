@@ -1071,7 +1071,7 @@ impl Widget for HueChromaPolarWidget {
             if C <= 0.1 { C = 0.; }
             let dd = 2 + min_dd + (C * (max_dd - min_dd) as f32).round() as i32;
             let x = cx + (C * r as f32 * h.cos()).round() as i32;
-            let y = cy + (C * r as f32 * h.sin()).round() as i32;
+            let y = cy - (C * r as f32 * h.sin()).round() as i32;
             graph.disc(x - dd / 2, y - dd / 2, dd, palette.rgb[i]);
             if i == palette.bl {
                 graph.circle(

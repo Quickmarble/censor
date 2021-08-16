@@ -36,8 +36,7 @@ impl Palette {
         let bg = Self::minimise(&cam16, |i, c| {
             if i == bl { return f32::MAX; }
             let not_grey = 100. - CAM16UCS::dist(&c, &CAM16UCS{J:50., a:0., b:0., C:0.});
-            let dist_to_bl = CAM16UCS::dist(&c, &cam16[bl]);
-            let not_bl = dist_to_bl * 0.4 + f32::abs(c.J - cam16[bl].J) * 0.6;
+            let not_bl = CAM16UCS::dist_limatch(c, cam16[bl], 0.6);
             let score = not_bl.powf(0.02) * not_grey.powf(0.98);
             return -score;
         });
@@ -47,9 +46,7 @@ impl Palette {
         });
         let tl = Self::minimise(&cam16, |i, c| {
             if i == bg { return f32::MAX; }
-            let dist_to_bg = CAM16UCS::dist(&c, &cam16[bg]);
-            let not_bg = dist_to_bg * 0.4 + f32::abs(c.J - cam16[bg].J) * 0.6;
-            return -not_bg;
+            -CAM16UCS::dist_limatch(c, cam16[bg], 0.6)
         });
         Palette { n, rgb, xyz, cam16, sorted, bl, bg, fg, tl }
     }
