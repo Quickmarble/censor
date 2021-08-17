@@ -71,7 +71,7 @@ impl Widget for IndexedWidget {
         graph.frame(
             x0, y0,
             self.ww * self.slots_x + 4, self.hh * self.slots_y + 4,
-            palette.rgb[palette.bg]
+            palette.bg_rgb
         );
         for ix in 0..self.slots_x {
             let x = x0 + 2 + ix * self.ww;
@@ -82,8 +82,8 @@ impl Widget for IndexedWidget {
                     graph.block(x, y, self.ww, self.hh, palette.rgb[i]);
                 } else {
                     graph.block(x, y, self.ww, self.hh, palette.rgb[palette.n - 1]);
-                    graph.block(x + 1, y + 1, self.ww - 2, 1, palette.rgb[palette.fg]);
-                    graph.block(x + 1, y + self.hh - 2, self.ww - 2, 1, palette.rgb[palette.bl]);
+                    graph.block(x + 1, y + 1, self.ww - 2, 1, palette.fg_rgb);
+                    graph.block(x + 1, y + self.hh - 2, self.ww - 2, 1, palette.bl_rgb);
                 }
             }
         }
@@ -124,12 +124,12 @@ impl Widget for CloseLiMatchWidget {
                 graph.block(x, y0, self.ww, self.hh, palette.rgb[i]);
                 graph.block(x, y0 + self.hh, self.ww, self.hh, palette.rgb[j]);
                 if i == palette.bl || j == palette.bl {
-                    graph.frame(x, y0, self.ww, self.hh * 2, palette.rgb[palette.bg]);
+                    graph.frame(x, y0, self.ww, self.hh * 2, palette.bg_rgb);
                 }
             } else {
                 graph.dither(
                     x, y0, self.ww, self.hh * 2,
-                    palette.rgb[palette.bg], palette.rgb[palette.bl]
+                    palette.bg_rgb, palette.bl_rgb
                 );
             }
         }
@@ -279,13 +279,13 @@ impl Widget for EvalState {
               font: &Font,
               x0: i32, y0: i32) {
         let d = 11;
-        graph.frame(x0, y0, d, d, palette.rgb[palette.bg]);
+        graph.frame(x0, y0, d, d, palette.bg_rgb);
         let glyph = match self {
             Self::Ok => { &font.ok }
             Self::Warn => { &font.warn }
             Self::Alert => { &font.alert }
         };
-        font.render_glyph(graph, x0 + 2, y0 + 2, glyph, palette.rgb[palette.fg]);
+        font.render_glyph(graph, x0 + 2, y0 + 2, glyph, palette.fg_rgb);
     }
 }
 
@@ -309,13 +309,13 @@ impl Widget for BarBoxWidget {
               _ill: &CAT16Illuminant,
               font: &Font,
               x0: i32, y0: i32) {
-        graph.frame(x0, y0, self.w, self.h, palette.rgb[palette.bg]);
+        graph.frame(x0, y0, self.w, self.h, palette.bg_rgb);
         let text_x = x0 + self.w / 2;
         let text_y0 = y0 + 2;
         for i in 0..self.text.len() {
             let y = text_y0 + 6 * i as i32;
             let s = &self.text[i];
-            graph.text(s, text_x, y, TextAnchor::n(), font, palette.rgb[palette.fg]);
+            graph.text(s, text_x, y, TextAnchor::n(), font, palette.fg_rgb);
         }
 
         let bar_x = x0 + 2;
@@ -324,8 +324,8 @@ impl Widget for BarBoxWidget {
         let bar_h = 4;
         let progress = self.v.clip(0., 1.);
         let progress_w = (((bar_w as f32 - 2.) * progress) as i32).clip(0, bar_w - 2);
-        graph.frame(bar_x, bar_y, bar_w, bar_h, palette.rgb[palette.bg]);
-        graph.block(bar_x + 1, bar_y + 1, progress_w, bar_h - 2, palette.rgb[palette.fg]);
+        graph.frame(bar_x, bar_y, bar_w, bar_h, palette.bg_rgb);
+        graph.block(bar_x + 1, bar_y + 1, progress_w, bar_h - 2, palette.fg_rgb);
 
         if let Some(t) = self.threshold {
             let t = t.clip(0., 1.);
@@ -333,12 +333,12 @@ impl Widget for BarBoxWidget {
             graph.line(
                 bar_x + 1 + threshold_w, bar_y - 1,
                 bar_x + bar_w - 1, bar_y - 1,
-                palette.rgb[palette.bg], None
+                palette.bg_rgb, None
             );
             graph.line(
                 bar_x + 1 + threshold_w, bar_y + bar_h,
                 bar_x + bar_w - 1, bar_y + bar_h,
-                palette.rgb[palette.bg], None
+                palette.bg_rgb, None
             );
         }
     }
@@ -363,18 +363,18 @@ impl Widget for YesNoBoxWidget {
               _ill: &CAT16Illuminant,
               font: &Font,
               x0: i32, y0: i32) {
-        graph.frame(x0, y0, self.w, self.h, palette.rgb[palette.bg]);
+        graph.frame(x0, y0, self.w, self.h, palette.bg_rgb);
         let text_x = x0 + self.w / 2;
         let text_y0 = y0 + 2;
         for i in 0..self.text.len() {
             let y = text_y0 + 6 * i as i32;
             let s = &self.text[i];
-            graph.text(s, text_x, y, TextAnchor::n(), font, palette.rgb[palette.fg]);
+            graph.text(s, text_x, y, TextAnchor::n(), font, palette.fg_rgb);
         }
 
         let result_y = y0 + self.h - 3;
         let s = if self.v { "<yes>" } else { "<no>" };
-        graph.text(s, text_x, result_y, TextAnchor::s(), font, palette.rgb[palette.fg]);
+        graph.text(s, text_x, result_y, TextAnchor::s(), font, palette.fg_rgb);
     }
 }
 
@@ -455,11 +455,14 @@ pub struct DistributionWidget {
     w: i32,
     h: i32,
     dist: HashMap<PackedF32, f32>,
+    dist_points: HashMap<usize, f32>,
     s: f32
 }
 impl DistributionWidget {
-    pub fn new(w: i32, h: i32, dist: HashMap<PackedF32, f32>, s: f32) -> Self {
-        Self { w, h, dist, s }
+    pub fn new(w: i32, h: i32,
+               dist: HashMap<PackedF32, f32>, dist_points: HashMap<usize, f32>,
+               s: f32) -> Self {
+        Self { w, h, dist, dist_points, s }
     }
 }
 impl Widget for DistributionWidget {
@@ -470,7 +473,7 @@ impl Widget for DistributionWidget {
               _ill: &CAT16Illuminant,
               _font: &Font,
               x0: i32, y0: i32) {
-        graph.frame(x0, y0, self.w, self.h, palette.rgb[palette.bg]);
+        graph.frame(x0, y0, self.w, self.h, palette.bg_rgb);
 
         let plot_x = x0 + 2;
         let plot_y = y0 + 2;
@@ -492,6 +495,20 @@ impl Widget for DistributionWidget {
             }
         }
 
+        let mut dist_points: Vec<(usize, f32)> = self.dist_points.iter()
+            .map(|(&i, &xx)| (i, xx))
+            .collect();
+        dist_points.sort_by_key(|(i, _)| PackedF32(palette.cam16[*i].C));
+        let mut marks = vec![0; plot_w as usize];
+        for &(i, xx) in dist_points.iter() {
+            let c = palette.rgb[i];
+            let xi = ((xx * (plot_w - 1) as f32) as i32).clip(0, plot_w - 1);
+            let x = plot_x + xi;
+            let yy_max = (((plot_h - 1) as f32 * data[xi as usize]) as i32).clip(0, plot_h - 1) + 1;
+            let y = y0 + self.h - 2 - (marks[xi as usize] % yy_max);
+            graph.put_pixel(x, y, c);
+            marks[xi as usize] += 1;
+        }
         for i in 0..plot_w-1 {
             let from = data[i as usize];
             let to = data[(i + 1) as usize];
@@ -500,7 +517,7 @@ impl Widget for DistributionWidget {
             graph.line(
                 plot_x + i, plot_y + plot_h - 1 - from_y,
                 plot_x + i + 1, plot_y + plot_h - 1 - to_y,
-                palette.rgb[palette.fg], None
+                palette.fg_rgb, None
             );
         }
     }
@@ -525,25 +542,29 @@ impl Widget for SpectralDistributionWidget {
               x0: i32, y0: i32) {
         let min = Wavelength::MIN as f32;
         let max = Wavelength::MAX as f32;
-        let dist = palette.spectral_stats(ill).iter()
+        let (dist, points) = palette.spectral_stats(ill);
+        let dist = dist.iter()
             .map(|(&PackedF32(k), &v)| (
-                PackedF32((k - min) / (max - min) as f32),
+                PackedF32((k - min) / (max - min)),
                 v
             ))
             .collect();
-        let distribution = DistributionWidget::new(self.w, self.h, dist, 0.02083333);
+        let points = points.iter()
+            .map(|(&i, &x)| (i, (x - min) / (max - min)))
+            .collect();
+        let distribution = DistributionWidget::new(self.w, self.h, dist, points, 0.02083333);
         distribution.render(graph, cacher, palette, ill, font, x0, y0);
         graph.text(
             &format!("{}", Wavelength::MIN),
             x0, y0 + self.h + 1,
             TextAnchor::nw(), font,
-            palette.rgb[palette.bg]
+            palette.bg_rgb
         );
         graph.text(
             &format!("{}", Wavelength::MAX),
             x0 + self.w, y0 + self.h + 1,
             TextAnchor::ne(), font,
-            palette.rgb[palette.bg]
+            palette.bg_rgb
         );
     }
 }
@@ -567,25 +588,29 @@ impl Widget for TemperatureDistributionWidget {
               x0: i32, y0: i32) {
         let max = f32::log10(CIEuv::CCT_MAX as f32);
         let min = f32::log10(CIEuv::CCT_MIN as f32);
-        let dist = palette.CCT_stats().iter()
+        let (dist, points) = palette.CCT_stats();
+        let dist = dist.iter()
             .map(|(&PackedF32(k), &v)| (
                 PackedF32(1. - (f32::log10(k) - min) / (max - min)),
                 v
             ))
             .collect();
-        let distribution = DistributionWidget::new(self.w, self.h, dist, 0.02083333);
+        let points = points.iter()
+            .map(|(&i, &x)| (i, 1. - (f32::log10(x) - min) / (max - min)))
+            .collect();
+        let distribution = DistributionWidget::new(self.w, self.h, dist, points, 0.02083333);
         distribution.render(graph, cacher, palette, ill, font, x0, y0);
         graph.text(
             "COLD",
             x0, y0 + self.h + 1,
             TextAnchor::nw(), font,
-            palette.rgb[palette.bg]
+            palette.bg_rgb
         );
         graph.text(
             "WARM",
             x0 + self.w, y0 + self.h + 1,
             TextAnchor::ne(), font,
-            palette.rgb[palette.bg]
+            palette.bg_rgb
         );
     }
 }
@@ -659,11 +684,11 @@ impl Widget for IsometricCubeWidget {
         ];
         for i in 0..6 {
             let (p1, p2) = (vertices[i], vertices[(i + 1) % 6]);
-            graph.line(p1.0, p1.1, p2.0, p2.1, palette.rgb[palette.bg], None);
+            graph.line(p1.0, p1.1, p2.0, p2.1, palette.bg_rgb, None);
         }
-        graph.line(cx, cy, vertices[0].0, vertices[0].1, palette.rgb[palette.bg], None);
-        graph.line(cx, cy, vertices[2].0, vertices[2].1, palette.rgb[palette.bg], None);
-        graph.line(cx, cy, vertices[4].0, vertices[4].1, palette.rgb[palette.bg], None);
+        graph.line(cx, cy, vertices[0].0, vertices[0].1, palette.bg_rgb, None);
+        graph.line(cx, cy, vertices[2].0, vertices[2].1, palette.bg_rgb, None);
+        graph.line(cx, cy, vertices[4].0, vertices[4].1, palette.bg_rgb, None);
 
         let mut sorted = self.points.iter()
             .map(|&(px, py, pz, i)| (px+py+pz, px, py, pz, i))
@@ -680,7 +705,7 @@ impl Widget for IsometricCubeWidget {
             if i == palette.bl {
                 graph.circle(
                     cx + xx - dd / 2 - 1, cy + yy - dd / 2 - 1, dd + 1,
-                    palette.rgb[palette.bg], None
+                    palette.bg_rgb, None
                 );
             }
         }
@@ -742,12 +767,12 @@ impl Widget for ChromaLightnessHueWidget {
               font: &Font,
               x0: i32, y0: i32) {
         let h1 = (self.hh1 - 1) * 3 + 1;
-        graph.text("CHR", x0, y0 - 1, TextAnchor::sw(), font, palette.rgb[palette.fg]);
+        graph.text("CHR", x0, y0 - 1, TextAnchor::sw(), font, palette.fg_rgb);
         for i in 0..3 {
             let y = y0 + (self.hh1 - 1) * i;
-            graph.frame(x0, y, self.w1, self.hh1, palette.rgb[palette.bg]);
+            graph.frame(x0, y, self.w1, self.hh1, palette.bg_rgb);
         }
-        graph.frame(x0 - 4, y0, 3, h1, palette.rgb[palette.bg]);
+        graph.frame(x0 - 4, y0, 3, h1, palette.bg_rgb);
         let mut chroma_stats = [0; 3];
         for i in 0..palette.n {
             let c = palette.cam16[i];
@@ -769,11 +794,11 @@ impl Widget for ChromaLightnessHueWidget {
             let l = (p * (self.hh1 - 1) as f32) as i32;
             let x = x0 - 3;
             let y = y0 + (2 - i as i32) * (self.hh1 - 1) + (self.hh1 - 1) / 2;
-            graph.line(x, y - l / 2, x, y + l / 2, palette.rgb[palette.fg], None);
+            graph.line(x, y - l / 2, x, y + l / 2, palette.fg_rgb, None);
         }
         let x0 = x0 + self.w1 + 1;
-        graph.text("LI-HUE", x0 + self.w2, y0 - 1, TextAnchor::se(), font, palette.rgb[palette.fg]);
-        graph.frame(x0, y0, self.w2, self.h2, palette.rgb[palette.bg]);
+        graph.text("LI-HUE", x0 + self.w2, y0 - 1, TextAnchor::se(), font, palette.fg_rgb);
+        graph.frame(x0, y0, self.w2, self.h2, palette.bg_rgb);
         let x_offset = 5;
         let y_offset = 5;
         let inner_x = x0 + x_offset;
@@ -783,24 +808,24 @@ impl Widget for ChromaLightnessHueWidget {
         let dd = ((48. / f32::sqrt(palette.n as f32)) as i32).clip(1, 7);
         for i in 1..6 {
             let y = inner_y + i * inner_h / 6;
-            graph.line(x0, y, x0 + self.w2 - 1, y, palette.rgb[palette.bg], Some(2));
+            graph.line(x0, y, x0 + self.w2 - 1, y, palette.bg_rgb, Some(2));
         }
-        graph.line(x0, inner_y, x0 + self.w2 - 1, inner_y, palette.rgb[palette.bg], None);
+        graph.line(x0, inner_y, x0 + self.w2 - 1, inner_y, palette.bg_rgb, None);
         graph.line(
             x0, y0 + self.h2 - 1 - y_offset,
             x0 + self.w2 - 1, y0 + self.h2 - 1 - y_offset,
-            palette.rgb[palette.bg], None
+            palette.bg_rgb, None
         );
-        graph.line(inner_x, y0, inner_x, y0 + self.h2 - 1, palette.rgb[palette.bg], None);
+        graph.line(inner_x, y0, inner_x, y0 + self.h2 - 1, palette.bg_rgb, None);
         graph.line(
             x0 + self.w2 / 2, y0,
             x0 + self.w2 / 2, y0 + self.h2 - 1,
-            palette.rgb[palette.bg], None
+            palette.bg_rgb, None
         );
         graph.line(
             x0 + self.w2 - 1 - x_offset, y0,
             x0 + self.w2 - 1 - x_offset, y0 + self.h2 - 1,
-            palette.rgb[palette.bg], None
+            palette.bg_rgb, None
         );
         let mut marks = vec![0; self.w2 as usize];
         let inner_x = inner_x + 1;
@@ -819,7 +844,7 @@ impl Widget for ChromaLightnessHueWidget {
             if i == palette.bl {
                 graph.circle(
                     inner_x + x - dd / 2 - 1, inner_y + inner_h - 1 - y - dd / 2 - 1,
-                    dd + 1, palette.rgb[palette.bg], None
+                    dd + 1, palette.bg_rgb, None
                 );
             }
             graph.put_pixel(
@@ -862,7 +887,7 @@ impl Widget for UsefulMixesWidget {
                         palette.rgb[pairs[i].0], palette.rgb[pairs[i].1]
                     );
                 } else {
-                    graph.frame(x, y, self.ww, self.hh, palette.rgb[palette.bg]);
+                    graph.frame(x, y, self.ww, self.hh, palette.bg_rgb);
                 }
             }
         }
@@ -891,8 +916,8 @@ impl Widget for LightnessChromaComponentsWidget {
         let w_empty = 4;
         let ww = (self.w - w_empty) / 2;
         let x1 = x0 + self.w - ww;
-        graph.text("LI", x0, y0 - 1, TextAnchor::sw(), font, palette.rgb[palette.fg]);
-        graph.text("CHR", x0 + self.w, y0 - 1, TextAnchor::se(), font, palette.rgb[palette.fg]);
+        graph.text("LI", x0, y0 - 1, TextAnchor::sw(), font, palette.fg_rgb);
+        graph.text("CHR", x0 + self.w, y0 - 1, TextAnchor::se(), font, palette.fg_rgb);
         for i in 0..n {
             let y = y0 + (hh + 1) * i;
             if i < palette.n as i32 {
@@ -905,22 +930,22 @@ impl Widget for LightnessChromaComponentsWidget {
                     graph.block(x0 + ww - l_J, y, l_J, hh, palette.rgb[i as usize]);
                 }
                 if ww - l_J - 1 >= 1 {
-                    graph.frame(x0, y, ww - l_J - 1, hh, palette.rgb[palette.bg]);
+                    graph.frame(x0, y, ww - l_J - 1, hh, palette.bg_rgb);
                 }
                 if l_C >= 1 {
                     graph.block(x1, y, l_C, hh, palette.rgb[i as usize]);
                 }
                 if ww - l_C - 1 >= 1 {
-                    graph.frame(x1 + l_C + 1, y, ww - l_C - 1, hh, palette.rgb[palette.bg]);
+                    graph.frame(x1 + l_C + 1, y, ww - l_C - 1, hh, palette.bg_rgb);
                 }
             } else {
                 graph.dither(
                     x0, y, ww, hh,
-                    palette.rgb[palette.bg], palette.rgb[palette.bl]
+                    palette.bg_rgb, palette.bl_rgb
                 );
                 graph.dither(
                     x1, y, ww, hh,
-                    palette.rgb[palette.bg], palette.rgb[palette.bl]
+                    palette.bg_rgb, palette.bl_rgb
                 );
             }
         }
@@ -951,11 +976,11 @@ impl Widget for MainPaletteWidget {
             graph.block(x, y0, ww, self.h, palette.rgb[i]);
             if i == palette.bl {
                 if ww >= 3 {
-                    graph.frame(x, y0, ww, self.h, palette.rgb[palette.bg]);
+                    graph.frame(x, y0, ww, self.h, palette.bg_rgb);
                 } else {
                     let y1 = y0 + self.h - 1;
-                    graph.line(x, y0, x + ww - 1, y0, palette.rgb[palette.bg], None);
-                    graph.line(x, y1, x + ww - 1, y1, palette.rgb[palette.bg], None);
+                    graph.line(x, y0, x + ww - 1, y0, palette.bg_rgb, None);
+                    graph.line(x, y1, x + ww - 1, y1, palette.bg_rgb, None);
                 }
             }
         }
@@ -1051,11 +1076,11 @@ impl Widget for HueChromaPolarWidget {
         let cx = x0 + r;
         let cy = y0 + r;
         let cross_l = 5;
-        graph.circle(x0, y0, self.d, palette.rgb[palette.bg], None);
-        graph.line(cx - cross_l, cy, cx + cross_l, cy, palette.rgb[palette.bg], None);
-        graph.line(cx, cy - cross_l, cx, cy + cross_l, palette.rgb[palette.bg], None);
+        graph.circle(x0, y0, self.d, palette.bg_rgb, None);
+        graph.line(cx - cross_l, cy, cx + cross_l, cy, palette.bg_rgb, None);
+        graph.line(cx, cy - cross_l, cx, cy + cross_l, palette.bg_rgb, None);
         for radius in [r / 4 + 1, r / 2 + 1, r * 3 / 4 + 1] {
-            graph.circle(cx - radius, cy - radius, radius * 2, palette.rgb[palette.bg], Some(3));
+            graph.circle(cx - radius, cy - radius, radius * 2, palette.bg_rgb, Some(3));
         }
 
         let min_dd = if palette.n <= 24 { 4 } else { 2 };
@@ -1076,7 +1101,7 @@ impl Widget for HueChromaPolarWidget {
             if i == palette.bl {
                 graph.circle(
                     x - dd / 2 - 1, y - dd / 2 - 1, dd + 1,
-                    palette.rgb[palette.bg], None
+                    palette.bg_rgb, None
                 );
             }
         }
@@ -1137,28 +1162,28 @@ impl Widget for HueLightnessPolarFilledGroupWidget {
         graph.text(
             &format!("C: {}", self.C_low.round() as i32),
             x0, y0, TextAnchor::nw(),
-            font, palette.rgb[palette.fg]
+            font, palette.fg_rgb
         );
         let c1 = HueLightnessPolarFilledWidget::new(self.C_low, self.d_big, true);
         c1.render(graph, cacher, palette, ill, font, x0, y0);
         graph.text(
             &format!("C: {}", self.C_low.round() as i32),
             x0 + self.d_big + self.d_small, y0 + self.d_big + d_cross, TextAnchor::se(),
-            font, palette.rgb[palette.fg]
+            font, palette.fg_rgb
         );
         let c2 = HueLightnessPolarFilledWidget::new(self.C_low, self.d_big, false);
         c2.render(graph, cacher, palette, ill, font, x0 + d_cross, y0 + d_cross);
         graph.text(
             &format!("C: {}", self.C_high.round() as i32),
             x0 + self.d_big + self.d_small, y0 + self.d_small, TextAnchor::e(),
-            font, palette.rgb[palette.fg]
+            font, palette.fg_rgb
         );
         let c3 = HueLightnessPolarFilledWidget::new(self.C_high, self.d_small, true);
         c3.render(graph, cacher, palette, ill, font, x0 + self.d_big, y0);
         graph.text(
             &format!("C: {}", self.C_high.round() as i32),
             x0, y0 + self.d_big, TextAnchor::sw(),
-            font, palette.rgb[palette.fg]
+            font, palette.fg_rgb
         );
         let c4 = HueLightnessPolarFilledWidget::new(self.C_high, self.d_small, false);
         c4.render(graph, cacher, palette, ill, font, x0, y0 + self.d_big);

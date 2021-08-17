@@ -13,10 +13,14 @@ pub struct Palette {
     pub bl: usize,
     pub bg: usize,
     pub fg: usize,
-    pub tl: usize
+    pub tl: usize,
+    pub bl_rgb: RGB255,
+    pub bg_rgb: RGB255,
+    pub fg_rgb: RGB255,
+    pub tl_rgb: RGB255
 }
 impl Palette {
-    pub fn new(rgb: Vec<RGB255>, ill: &CAT16Illuminant) -> Self {
+    pub fn new(rgb: Vec<RGB255>, ill: &CAT16Illuminant, grey_ui: bool) -> Self {
         let n = rgb.len();
         let xyz: Vec<CIEXYZ> = rgb.iter()
             .map(|&RGB| CIEXYZ::from(RGB))
@@ -48,7 +52,11 @@ impl Palette {
             if i == bg { return f32::MAX; }
             -CAM16UCS::dist_limatch(c, cam16[bg], 0.6)
         });
-        Palette { n, rgb, xyz, cam16, sorted, bl, bg, fg, tl }
+        let bl_rgb = if grey_ui { RGB255::new(0, 0, 0) } else { rgb[bl] };
+        let bg_rgb = if grey_ui { RGB255::new(127, 127, 127) } else { rgb[bg] };
+        let fg_rgb = if grey_ui { RGB255::new(255, 255, 255) } else { rgb[fg] };
+        let tl_rgb = if grey_ui { RGB255::new(255, 255, 255) } else { rgb[tl] };
+        Palette { n, rgb, xyz, cam16, sorted, bl, bg, fg, tl, bl_rgb, bg_rgb, fg_rgb, tl_rgb }
     }
     fn minimise<F: Fn(usize, CAM16UCS) -> f32>(cam16: &Vec<CAM16UCS>, score: F) -> usize {
         let mut min = f32::MAX;
@@ -92,8 +100,10 @@ impl Palette {
         let z = x.complementary();
         return Self::minimise(&self.cam16, |_, c| CAM16UCS::dist_limatch(z, c, 0.1));
     }
-    pub fn spectral_stats(&self, ill: &CAT16Illuminant) -> HashMap<PackedF32, f32> {
+    pub fn spectral_stats(&self, ill: &CAT16Illuminant)
+                -> (HashMap<PackedF32, f32>, HashMap<usize, f32>) {
         let mut stats = HashMap::new();
+        let mut points = HashMap::new();
         let o = CIExy::from(CIEXYZ::new(ill.X_w, ill.Y_w, ill.Z_w));
         for i in 0..self.n {
             let xy = CIExy::from(self.xyz[i]);
@@ -105,6 +115,7 @@ impl Palette {
                     }
                     let weight = (self.cam16[i].C / 100.).clip(0., 1.);
                     stats.insert(k, stats[&k] + weight);
+                    points.insert(i, wl);
                 }
                 None => {}
             }
@@ -115,10 +126,11 @@ impl Palette {
                 *v /= norm;
             }
         }
-        return stats;
+        return (stats, points);
     }
-    pub fn CCT_stats(&self) -> HashMap<PackedF32, f32> {
+    pub fn CCT_stats(&self) -> (HashMap<PackedF32, f32>, HashMap<usize, f32>) {
         let mut stats = HashMap::new();
+        let mut points = HashMap::new();
         for i in 0..self.n {
             match CIEuv::from(self.xyz[i]).CCT() {
                 Some((T, dist)) => {
@@ -128,6 +140,7 @@ impl Palette {
                     }
                     let weight = 1. - dist * 20.;
                     stats.insert(k, stats[&k] + weight);
+                    points.insert(i, T);
                 }
                 None => {}
             }
@@ -138,7 +151,7 @@ impl Palette {
                 *v /= norm;
             }
         }
-        return stats;
+        return (stats, points);
     }
     pub fn useful_mixes(&self, max: usize) -> Vec<(usize, usize)> {
         fn score_added(cam16: &Vec<CAM16UCS>, x: CAM16UCS) -> f32 {

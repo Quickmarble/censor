@@ -67,7 +67,9 @@ fn main() {
     let mut cacher = PlotCacher::new();
     let T = 5500.;
 
-    analyse(&colours, T, &mut cacher, &font, "output".into(), true);
+    let grey_ui = false;
+
+    analyse(&colours, T, &mut cacher, &font, grey_ui, "output".into(), true);
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -100,6 +102,12 @@ fn main() {
                     .short("v")
                     .long("verbose")
                     .help("Prints debugging output")
+            )
+            .arg(
+                Arg::with_name("grey_ui")
+                    .short("g")
+                    .long("grey")
+                    .help("Uses black, grey and white for UI instead of choosing palette colours")
             )
             .group(ArgGroup::with_name("input")
                 .multiple(false)
@@ -273,6 +281,7 @@ fn palette_from_cmd<'a>(matches: &clap::ArgMatches<'a>, verbose: bool) -> Vec<RG
 
 fn main_analyse<'a>(matches: &clap::ArgMatches<'a>) {
     let verbose = matches.is_present("verbose");
+    let grey_ui = matches.is_present("grey_ui");
 
     let mut outfile: String = matches.value_of("outfile").unwrap_or("plot.png").into();
     if !outfile.ends_with(".png") {
@@ -293,7 +302,7 @@ fn main_analyse<'a>(matches: &clap::ArgMatches<'a>) {
         }
     }
 
-    analyse(&colours, T, &mut cacher, &font, outfile, verbose);
+    analyse(&colours, T, &mut cacher, &font, grey_ui, outfile, verbose);
 }
 
 fn main_daemon<'a>(matches: &clap::ArgMatches<'a>) {
@@ -321,7 +330,7 @@ fn main_compute<'a>(matches: &clap::ArgMatches<'a>) {
     let ill = CAT16Illuminant::new(CIExy::from_T(T));
 
     let colours = palette_from_cmd(matches, false);
-    let palette = Palette::new(colours.clone(), &ill);
+    let palette = Palette::new(colours.clone(), &ill, false);
 
     let metrics = ["iss", "acyclic"];
 

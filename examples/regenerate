@@ -1,0 +1,5 @@
+#!/bin/bash
+cargo run -- analyse -l aerugo -o aerugo
+cargo run -- analyse -l aurora -o aurora
+cargo run -- analyse -l cheese-palette -o cheese-palette
+cargo run -- analyse -l obra-dinn-ibm-8503 -o obra-dinn-ibm-8503

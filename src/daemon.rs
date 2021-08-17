@@ -112,7 +112,8 @@ fn process(mut stream: TcpStream, T: f32, font: &Font, cacher: &mut PlotCacher, 
                     return;
                 }
             }
-            analyse(&colours, T, cacher, font, outfile, verbose);
+            let grey_ui = false; // TODO: improve daemon command structure and include this
+            analyse(&colours, T, cacher, font, grey_ui, outfile, verbose);
             let _ = stream.write("OK\n".as_bytes());
             return;
         }

@@ -17,10 +17,14 @@ $ cargo install censor-analyser
 ```
 
 ## Usage
+To see all the flags and descriptions, pass
+`--help` to `censor` and its subcommands.
 ### `censor analyse`
 The default output is written into `plot.png`
 in the working directory even if the file exists.
 Specify another output file with `-o another.png` argument.
+To use black, grey and white for UI instead of
+choosing palette colours, pass the `-g` flag.
 
 Analyse a palette from an image `input.png`:
 ```

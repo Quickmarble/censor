@@ -10,37 +10,37 @@ use std::f32::consts::PI;
 
 pub fn analyse(
             colours: &Vec<RGB255>, T: f32,
-            cacher: &mut PlotCacher, font: &Font,
+            cacher: &mut PlotCacher, font: &Font, grey_ui: bool,
             fname: String, verbose: bool) {
     if verbose { eprintln!("Starting analysis."); }
     let ill = CAT16Illuminant::new(CIExy::from_T(T));
-    let palette = Palette::new(colours.clone(), &ill);
+    let palette = Palette::new(colours.clone(), &ill, grey_ui);
 
     let w: i32 = 640;
     let h: i32 = 432;
 
     let mut graph = ImageGraph::new(w as u32, h as u32);
-    graph.block(0, 0, w, h, palette.rgb[palette.bg]);
+    graph.block(0, 0, w, h, palette.bg_rgb);
     if verbose { eprintln!("Created the canvas."); }
 
     let inner_x = 17;
     let inner_y = 16;
     let inner_w = 610;
     let inner_h = 406;
-    graph.block(inner_x, inner_y, inner_w, inner_h, palette.rgb[palette.bl]);
+    graph.block(inner_x, inner_y, inner_w, inner_h, palette.bl_rgb);
 
     graph.text(&format!("= CENSOR v{} - PALETTE ANALYSER =", metadata::VERSION),
                w / 2, 2, TextAnchor::n(), font,
-               palette.rgb[palette.tl]);
+               palette.tl_rgb);
     graph.text(&format!("Unique colours in palette: {}", palette.n),
                2, 2, TextAnchor::nw(), font,
-               palette.rgb[palette.tl]);
+               palette.tl_rgb);
     graph.text("Colour difference: CAM16UCS",
                w - 2, 2, TextAnchor::ne(), font,
-               palette.rgb[palette.tl]);
+               palette.tl_rgb);
     graph.text(&format!("Illuminant: D(T={:.2}°K)", T),
                w - 2, 9, TextAnchor::ne(), font,
-               palette.rgb[palette.tl]);
+               palette.tl_rgb);
 
     let rect_JCh_w = 99;
     let rect_JCh_h = 96;
@@ -51,7 +51,7 @@ pub fn analyse(
         let y = inner_y + 1;
         graph.text(&format!("CHROMA: {}", C),
                    x, inner_y - 1, TextAnchor::sw(), font,
-                   palette.rgb[palette.bl]);
+                   palette.bl_rgb);
         let rect_JCh = RectJChWidget::new(rect_JCh_w, rect_JCh_h, C as f32);
         if verbose { eprintln!("RectJCh in progress..."); }
         rect_JCh.render(&mut graph, cacher, &palette, &ill, font, x, y);
@@ -62,13 +62,13 @@ pub fn analyse(
     let spectrum_y = inner_y + 100;
     graph.text("SPEC",
                inner_x - 1, spectrum_y + 1, TextAnchor::ne(), font,
-               palette.rgb[palette.bl]);
+               palette.bl_rgb);
     graph.text("C50%",
                inner_x - 1, spectrum_y + 1 + (spectrum_h + 1), TextAnchor::ne(), font,
-               palette.rgb[palette.bl]);
+               palette.bl_rgb);
     graph.text("J50%",
                inner_x - 1, spectrum_y + 1 + (spectrum_h + 1) * 2, TextAnchor::ne(), font,
-               palette.rgb[palette.bl]);
+               palette.bl_rgb);
     let spectrum = SpectrumWidget::new(spectrum_w, spectrum_h);
     if verbose { eprintln!("Spectrum in progress..."); }
     spectrum.render(&mut graph, cacher, &palette, &ill, font, inner_x + 1, spectrum_y);
@@ -78,10 +78,10 @@ pub fn analyse(
     let spectrobox_h = 92;
     graph.text("SPEC",
                inner_x - 1, spectrobox_y + 1 + spectrobox_h / 2 - 3, TextAnchor::e(), font,
-               palette.rgb[palette.bl]);
+               palette.bl_rgb);
     graph.text("BOX",
                inner_x - 1, spectrobox_y + 1 + spectrobox_h / 2 + 3, TextAnchor::e(), font,
-               palette.rgb[palette.bl]);
+               palette.bl_rgb);
     let spectrobox = SpectroBoxWidget::new(spectrobox_w, spectrobox_h);
     if verbose { eprintln!("SpectroBox in progress..."); }
     spectrobox.render(&mut graph, cacher, &palette, &ill, font, inner_x + 1, spectrobox_y);
@@ -90,7 +90,7 @@ pub fn analyse(
     let indexed_y = inner_y + 1;
     graph.text("INDEXED PALETTE",
                indexed_x, inner_y - 1, TextAnchor::sw(), font,
-               palette.rgb[palette.bl]);
+               palette.bl_rgb);
     let indexed = IndexedWidget::new(32, 8, 3, 4);
     if verbose { eprintln!("Indexed in progress..."); }
     indexed.render(&mut graph, cacher, &palette, &ill, font, indexed_x, indexed_y);
@@ -102,7 +102,7 @@ pub fn analyse(
     let close10_y = inner_y + 45;
     graph.text("close cols: 10% li-match",
                close_x + close_w / 2, close10_y, TextAnchor::s(), font,
-               palette.rgb[palette.fg]);
+               palette.fg_rgb);
     let close10 = CloseLiMatchWidget::new(close_d, close_d, close_n as usize, 0.1);
     if verbose { eprintln!("CloseLiMatch in progress..."); }
     close10.render(&mut graph, cacher, &palette, &ill, font, close_x, close10_y);
@@ -110,7 +110,7 @@ pub fn analyse(
     let close70_y = close10_y + close_d * 2 + 2;
     graph.text("close cols: 70% li-match",
                close_x + close_w / 2, close70_y + close_d * 2 + 1, TextAnchor::n(), font,
-               palette.rgb[palette.fg]);
+               palette.fg_rgb);
     let close70 = CloseLiMatchWidget::new(close_d, close_d, close_n as usize, 0.7);
     if verbose { eprintln!("CloseLiMatch in progress..."); }
     close70.render(&mut graph, cacher, &palette, &ill, font, close_x, close70_y);
@@ -137,7 +137,7 @@ pub fn analyse(
     let sdist_h = 36;
     graph.text("spectral distribution",
                sdist_x + sdist_w / 2, sdist_y, TextAnchor::s(), font,
-               palette.rgb[palette.fg]);
+               palette.fg_rgb);
     let sdist = SpectralDistributionWidget::new(sdist_w, sdist_h);
     if verbose { eprintln!("SpectralDistribution in progress..."); }
     sdist.render(&mut graph, cacher, &palette, &ill, font, sdist_x, sdist_y);
@@ -148,7 +148,7 @@ pub fn analyse(
     let tdist_h = 36;
     graph.text("temperature",
                tdist_x + tdist_w / 2, tdist_y - 1, TextAnchor::s(), font,
-               palette.rgb[palette.fg]);
+               palette.fg_rgb);
     let tdist = TemperatureDistributionWidget::new(tdist_w, tdist_h);
     if verbose { eprintln!("TemperatureDistribution in progress..."); }
     tdist.render(&mut graph, cacher, &palette, &ill, font, tdist_x, tdist_y);
@@ -158,7 +158,7 @@ pub fn analyse(
     let limatch_h = 214;
     graph.text("LI-MATCH",
                limatch_x + limatch_w / 2, inner_y - 1, TextAnchor::s(), font,
-               palette.rgb[palette.bl]);
+               palette.bl_rgb);
     let limatch = LiMatchGreyscaleWidget::new(limatch_w, limatch_h);
     if verbose { eprintln!("LiMatchGreyscale in progress..."); }
     limatch.render(&mut graph, cacher, &palette, &ill, font, limatch_x, inner_y + 1);
@@ -168,7 +168,7 @@ pub fn analyse(
     let isocubes_dx = 7;
     graph.text("CAM16UCS COLOURSPACE",
                isocubes_x + isocubes_ww + isocubes_dx / 2, inner_y - 1, TextAnchor::s(), font,
-               palette.rgb[palette.bl]);
+               palette.bl_rgb);
     let isocubes = CAM16IsoCubesWidget::new(isocubes_ww, isocubes_dx);
     if verbose { eprintln!("CAM16IsoCubes in progress..."); }
     isocubes.render(&mut graph, cacher, &palette, &ill, font, isocubes_x, inner_y + 1);
@@ -202,7 +202,7 @@ pub fn analyse(
         graph.vtext("USEFUL MIXES",
                     inner_x + inner_w + 5, inner_y + 1,
                     HorizontalTextAnchor::Center, font,
-                    palette.rgb[palette.bl]);
+                    palette.bl_rgb);
         let mixes = UsefulMixesWidget::new(mixes_xn, mixes_yn, mixes_ww, mixes_hh);
         if verbose { eprintln!("UsefulMixes in progress..."); }
         mixes.render(&mut graph, cacher, &palette, &ill, font, mixes_x, inner_y + 1);
@@ -212,7 +212,7 @@ pub fn analyse(
         "LIGHTNESS & CHROMA",
         inner_x + inner_w + 5, comps_ty,
         HorizontalTextAnchor::Center, font,
-        palette.rgb[palette.bl]
+        palette.bl_rgb
     );
     let comps = LightnessChromaComponentsWidget::new(comps_w, comps_h);
     if verbose { eprintln!("LightnessChromaComponents in progress..."); }
@@ -223,7 +223,7 @@ pub fn analyse(
     let mainpal_h = 10;
     graph.text("PAL",
                inner_x - 1, mainpal_y + 2, TextAnchor::ne(), font,
-               palette.rgb[palette.bl]);
+               palette.bl_rgb);
     let mainpal = MainPaletteWidget::new(mainpal_w, mainpal_h);
     if verbose { eprintln!("MainPalette in progress..."); }
     mainpal.render(&mut graph, cacher, &palette, &ill, font, inner_x + 1, mainpal_y);
@@ -235,10 +235,10 @@ pub fn analyse(
         let neu_h2 = 7;
         graph.text("NEU",
                    inner_x - 1, neu_y, TextAnchor::ne(), font,
-                   palette.rgb[palette.bl]);
+                   palette.bl_rgb);
         graph.text("GREY",
                    inner_x - 1, neu_y + 7, TextAnchor::ne(), font,
-                   palette.rgb[palette.bl]);
+                   palette.bl_rgb);
         let neu = NeutralisersWidget::new(neu_w, neu_h1, neu_h2);
         if verbose { eprintln!("Neutralisers in progress..."); }
         neu.render(&mut graph, cacher, &palette, &ill, font, inner_x + 1, neu_y);
@@ -247,7 +247,7 @@ pub fn analyse(
     let rgb12bit_y = inner_y + 256;
     graph.text("12 BIT RGB",
                inner_x + 1, rgb12bit_y - 1, TextAnchor::sw(), font,
-               palette.rgb[palette.fg]);
+               palette.fg_rgb);
     let rgb12bit = RGB12BitWidget {};
     if verbose { eprintln!("RGB12Bit in progress..."); }
     rgb12bit.render(&mut graph, cacher, &palette, &ill, font, inner_x + 1, rgb12bit_y);
@@ -257,7 +257,7 @@ pub fn analyse(
     let huechroma_d = 104;
     graph.text("POLAR HUE-CHROMA",
                huechroma_x + huechroma_d / 2, inner_y + inner_h + 1, TextAnchor::n(), font,
-               palette.rgb[palette.bl]);
+               palette.bl_rgb);
     let huechroma = HueChromaPolarWidget::new(huechroma_d);
     if verbose { eprintln!("HueChromaPolar in progress..."); }
     huechroma.render(&mut graph, cacher, &palette, &ill, font, huechroma_x, huechroma_y);
@@ -270,7 +270,7 @@ pub fn analyse(
     let hueli_d_big = 90;
     graph.text("POLAR HUE-LIGHTNESS",
                hueli_x + (hueli_d_small + hueli_d_big) / 2, inner_y + inner_h + 1,
-               TextAnchor::n(), font, palette.rgb[palette.bl]);
+               TextAnchor::n(), font, palette.bl_rgb);
     let hueli = HueLightnessPolarFilledGroupWidget::new(
         hueli_C_low, hueli_C_high, hueli_d_small, hueli_d_big
     );
@@ -285,7 +285,7 @@ pub fn analyse(
     let comp_C = 42.;
     graph.text("COMPLEMENTARIES/DESATURATION",
                comp_x + (comp_d * 3 + comp_dx * 2) / 2, inner_y + inner_h + 1,
-               TextAnchor::n(), font, palette.rgb[palette.bl]);
+               TextAnchor::n(), font, palette.bl_rgb);
     let comp_hues = [
         (0. * PI / 6., "purple/seaweed"),
         (1. * PI / 6., "red/cyan"),
@@ -306,7 +306,7 @@ pub fn analyse(
             let y = comp_y + (comp_d + comp_dy) * yi as i32;
             graph.text(title,
                        x, y - 7,
-                       TextAnchor::nw(), font, palette.rgb[palette.fg]);
+                       TextAnchor::nw(), font, palette.fg_rgb);
             let comp = ComplementariesWidget::new(a, b, comp_d, comp_d);
             if verbose { eprintln!("Complementaries in progress..."); }
             comp.render(&mut graph, cacher, &palette, &ill, font, x, y);
