@@ -146,6 +146,25 @@ fn main() {
                     .help("Loads input colours from https://lospec.com/palette-list/SLUG")
                     .takes_value(true)
             )
+            .group(ArgGroup::with_name("illuminant")
+                .multiple(false)
+                .required(false)
+                .args(&["T", "D"])
+            )
+            .arg(
+                Arg::with_name("T")
+                    .short("T")
+                    .value_name("TEMP")
+                    .help("Use TEMP Kelvins to define the white point for the daylight illuminant. Default: 5500")
+                    .takes_value(true)
+            )
+            .arg(
+                Arg::with_name("D")
+                    .short("D")
+                    .value_name("NUM")
+                    .help("Use a predefined white point for the daylight illuminant. Supported values: 50, 55, 65")
+                    .takes_value(true)
+            )
             .arg(
                 Arg::with_name("outfile")
                     .short("o")
@@ -192,6 +211,25 @@ fn main() {
                     .long("lospec")
                     .value_name("SLUG")
                     .help("Loads input colours from https://lospec.com/palette-list/SLUG")
+                    .takes_value(true)
+            )
+            .group(ArgGroup::with_name("illuminant")
+                .multiple(false)
+                .required(false)
+                .args(&["T", "D"])
+            )
+            .arg(
+                Arg::with_name("T")
+                    .short("T")
+                    .value_name("TEMP")
+                    .help("Use TEMP Kelvins to define the white point for the daylight illuminant. Default: 5500")
+                    .takes_value(true)
+            )
+            .arg(
+                Arg::with_name("D")
+                    .short("D")
+                    .value_name("NUM")
+                    .help("Use a predefined white point for the daylight illuminant. Supported values: 50, 55, 65")
                     .takes_value(true)
             )
             .group(ArgGroup::with_name("metrics")
@@ -290,7 +328,26 @@ fn main_analyse<'a>(matches: &clap::ArgMatches<'a>) {
 
     let font = Font::new();
     let mut cacher = PlotCacher::new();
-    let T = 5500.;
+    let T: f32;
+    if let Some(D) = matches.value_of("D") {
+        match D {
+            "50" => { T = 5000.00 }
+            "55" => { T = 5500.00 }
+            "65" => { T = 6503.51 }
+            _ => {
+                eprintln!("Invalid illuminant preset: D{}", D);
+                std::process::exit(1);
+            }
+        }
+    } else {
+        T = match str::parse(matches.value_of("T").unwrap_or("5500")) {
+            Ok(x) => { x }
+            Err(e) => {
+                eprintln!("Error parsing temperature: {}", e);
+                std::process::exit(1);
+            }
+        };
+    }
 
     let colours = palette_from_cmd(matches, verbose);
 
@@ -326,7 +383,26 @@ fn main_daemon<'a>(matches: &clap::ArgMatches<'a>) {
 }
 
 fn main_compute<'a>(matches: &clap::ArgMatches<'a>) {
-    let T = 5500.;
+    let T: f32;
+    if let Some(D) = matches.value_of("D") {
+        match D {
+            "50" => { T = 5000.00 }
+            "55" => { T = 5500.00 }
+            "65" => { T = 6503.51 }
+            _ => {
+                eprintln!("Invalid illuminant preset: D{}", D);
+                std::process::exit(1);
+            }
+        }
+    } else {
+        T = match str::parse(matches.value_of("T").unwrap_or("5500")) {
+            Ok(x) => { x }
+            Err(e) => {
+                eprintln!("Error parsing temperature: {}", e);
+                std::process::exit(1);
+            }
+        };
+    }
     let ill = CAT16Illuminant::new(CIExy::from_T(T));
 
     let colours = palette_from_cmd(matches, false);

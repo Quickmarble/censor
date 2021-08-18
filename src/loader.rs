@@ -100,7 +100,8 @@ pub fn load_from_file(filename: String) -> Result<Vec<RGB255>, LoadError> {
     let file = std::fs::File::open(filename).map_err(|e| LoadError::FileOpen(e))?;
     let reader = std::io::BufReader::new(file);
     for line in reader.lines() {
-        let c = parse_hex(line.map_err(|e| LoadError::FileRead(e))?.clone())?;
+        let line = line.map_err(|e| LoadError::FileRead(e))?;
+        let c = parse_hex(line)?;
         colours.push(c);
     }
     return Ok(colours);

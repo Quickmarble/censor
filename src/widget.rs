@@ -1067,10 +1067,10 @@ impl HueChromaPolarWidget {
 impl Widget for HueChromaPolarWidget {
     fn render(&self,
               graph: &mut ImageGraph,
-              _cacher: &mut PlotCacher,
+              cacher: &mut PlotCacher,
               palette: &Palette,
-              _ill: &CAT16Illuminant,
-              _font: &Font,
+              ill: &CAT16Illuminant,
+              font: &Font,
               x0: i32, y0: i32) {
         let r = self.d / 2;
         let cx = x0 + r;
@@ -1079,8 +1079,42 @@ impl Widget for HueChromaPolarWidget {
         graph.circle(x0, y0, self.d, palette.bg_rgb, None);
         graph.line(cx - cross_l, cy, cx + cross_l, cy, palette.bg_rgb, None);
         graph.line(cx, cy - cross_l, cx, cy + cross_l, palette.bg_rgb, None);
-        for radius in [r / 4 + 1, r / 2 + 1, r * 3 / 4 + 1] {
-            graph.circle(cx - radius, cy - radius, radius * 2, palette.bg_rgb, Some(3));
+        for radius in [r / 4, r / 2, r * 3 / 4] {
+            graph.circle(cx - radius, cy - radius, radius * 2 + 1, palette.bg_rgb, Some(3));
+        }
+
+        let boundary = cacher.get_cam16_boundary(ill);
+        let boundary_n = boundary.len();
+        for i in 0..boundary_n {
+            let j = (i + 1) % boundary_n;
+            let a_i = (i as f32 / boundary_n as f32) * 2. * PI;
+            let C_i = boundary[i];
+            let a_j = (j as f32 / boundary_n as f32) * 2. * PI;
+            let C_j = boundary[j];
+            let x_i = cx + (C_i * r as f32 * a_i.cos()).round() as i32;
+            let y_i = cy - (C_i * r as f32 * a_i.sin()).round() as i32;
+            let x_j = cx + (C_j * r as f32 * a_j.cos()).round() as i32;
+            let y_j = cy - (C_j * r as f32 * a_j.sin()).round() as i32;
+            graph.line(x_i, y_i, x_j, y_j, palette.fg_rgb, None);
+        }
+
+        let marks = [
+            (255,   0, 0, "R"),
+            (255, 255, 0, "Y"),
+            (0, 255,   0, "G"),
+            (0, 255, 255, "C"),
+            (0,   0, 255, "B"),
+            (255, 0, 255, "M")
+        ];
+        for (rr, gg, bb, text) in marks {
+            let rgb = RGB255::new(rr, gg, bb);
+            let xyz = CIEXYZ::from(rgb);
+            let cam16 = CAM16UCS::of(xyz, ill);
+            let h = f32::atan2(cam16.b, cam16.a);
+            let C = cam16.C / 100.;
+            let x = cx + ((C * r as f32 + 6.) * h.cos()).round() as i32;
+            let y = cy - ((C * r as f32 + 6.) * h.sin()).round() as i32;
+            graph.text(text, x, y, TextAnchor::c(), font, palette.fg_rgb);
         }
 
         let min_dd = if palette.n <= 24 { 4 } else { 2 };
@@ -1092,7 +1126,7 @@ impl Widget for HueChromaPolarWidget {
         for i in 0..palette.n {
             let c = palette.cam16[i];
             let h = f32::atan2(c.b, c.a);
-            let mut C = (c.C / 100.).clip(0., 1.);
+            let mut C = c.C / 100.;
             if C <= 0.1 { C = 0.; }
             let dd = 2 + min_dd + (C * (max_dd - min_dd) as f32).round() as i32;
             let x = cx + (C * r as f32 * h.cos()).round() as i32;
