@@ -34,24 +34,30 @@ impl Palette {
             .collect();
         sorted.sort_by_key(|(_, c)| PackedF32(c.J));
         let sorted = sorted.iter().map(|&(i, _)| i).collect();
-        let bl = Self::minimise(&cam16, |_, c| {
+        let mut bl = Self::minimise(&cam16, |_, c| {
             CAM16UCS::dist(&c, &CAM16UCS{J:0., a:0., b:0., C:0.})
         });
-        let bg = Self::minimise(&cam16, |i, c| {
+        let mut bg = Self::minimise(&cam16, |i, c| {
             if i == bl { return f32::MAX; }
             let not_grey = 100. - CAM16UCS::dist(&c, &CAM16UCS{J:50., a:0., b:0., C:0.});
             let not_bl = CAM16UCS::dist_limatch(c, cam16[bl], 0.6);
             let score = not_bl.powf(0.02) * not_grey.powf(0.98);
             return -score;
         });
-        let fg = Self::minimise(&cam16, |i, c| {
+        let mut fg = Self::minimise(&cam16, |i, c| {
             if i == bl { return f32::MAX; }
             -CAM16UCS::dist(&c, &cam16[bl])
         });
-        let tl = Self::minimise(&cam16, |i, c| {
+        let mut tl = Self::minimise(&cam16, |i, c| {
             if i == bg { return f32::MAX; }
             -CAM16UCS::dist_limatch(c, cam16[bg], 0.6)
         });
+        if grey_ui {
+            bl = usize::MAX;
+            bg = usize::MAX;
+            fg = usize::MAX;
+            tl = usize::MAX;
+        }
         let bl_rgb = if grey_ui { RGB255::new(0, 0, 0) } else { rgb[bl] };
         let bg_rgb = if grey_ui { RGB255::new(127, 127, 127) } else { rgb[bg] };
         let fg_rgb = if grey_ui { RGB255::new(255, 255, 255) } else { rgb[fg] };

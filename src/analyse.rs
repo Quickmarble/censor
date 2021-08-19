@@ -253,7 +253,7 @@ pub fn analyse(
     rgb12bit.render(&mut graph, cacher, &palette, &ill, font, inner_x + 1, rgb12bit_y);
 
     let huechroma_x = inner_x + 8;
-    let huechroma_y = inner_y + 293;
+    let huechroma_y = inner_y + 291;
     let huechroma_d = 105;
     graph.text("POLAR HUE-CHROMA",
                huechroma_x + huechroma_d / 2, inner_y + inner_h + 1, TextAnchor::n(), font,

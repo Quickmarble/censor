@@ -794,7 +794,7 @@ impl Widget for ChromaLightnessHueWidget {
             let l = (p * (self.hh1 - 1) as f32) as i32;
             let x = x0 - 3;
             let y = y0 + (2 - i as i32) * (self.hh1 - 1) + (self.hh1 - 1) / 2;
-            graph.line(x, y - l / 2, x, y + l / 2, palette.fg_rgb, None);
+            graph.line(x, y - l / 2 + 1, x, y + l / 2 - 1, palette.fg_rgb, None);
         }
         let x0 = x0 + self.w1 + 1;
         graph.text("LI-HUE", x0 + self.w2, y0 - 1, TextAnchor::se(), font, palette.fg_rgb);
