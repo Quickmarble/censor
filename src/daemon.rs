@@ -20,7 +20,7 @@ pub fn run(port: u16, verbose: bool) -> std::io::Result<()> {
     let parser = metadata::daemon_parser();
     
     let font = Font::new();
-    let mut cacher = BigCacher::new();
+    let mut cacher = BigCacher::init(true);
 
     for stream in listener.incoming() {
         match stream {
@@ -176,6 +176,12 @@ fn daemon_analyse<'a>(stream: &mut TcpStream, matches: &clap::ArgMatches<'a>,
 
     analyse(&colours, T, cache, &font, grey_ui, outfile, verbose);
     let _ = stream.write("OK\n".as_bytes());
+
+    if let Err(e) = cacher.save() {
+        if verbose {
+            eprintln!("Error saving cache: {}", e);
+        }
+    }
 }
 
 fn daemon_compute<'a>(stream: &mut TcpStream, matches: &clap::ArgMatches<'a>) {

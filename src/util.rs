@@ -1,3 +1,5 @@
+use serde::{Serialize, Deserialize};
+
 use std::cmp::Ordering;
 
 pub trait Clip {
@@ -50,7 +52,7 @@ impl<T> Lerp for T
     }
 }
 
-#[derive(Copy, Clone, PartialOrd)]
+#[derive(Copy, Clone, PartialOrd, Serialize, Deserialize)]
 pub struct PackedF32(pub f32);
 impl std::hash::Hash for PackedF32 {
     fn hash<H>(&self, state: &mut H) where H: std::hash::Hasher {

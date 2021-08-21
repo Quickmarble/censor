@@ -1,9 +1,13 @@
+use serde::{Serialize, Deserialize};
+use bincode;
+use directories::ProjectDirs;
+
 use crate::util::{Clip, CyclicClip, PackedF32};
 use crate::colour::*;
 
 use std::collections::HashMap;
 
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct PlotData<T: Copy> {
     pub data: Vec<Vec<Option<T>>>
 }
@@ -19,7 +23,7 @@ impl<T: Copy> PlotData<T> {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct PlotCacher {
     cache: HashMap<String, PlotData<CAM16UCS>>,
     cam16_boundary: Option<Vec<f32>>
@@ -76,16 +80,17 @@ impl PlotCacher {
 
         return boundary;
     }
-    // TODO: save/load
 }
 
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct BigCacher {
+    version: u64,
     cache: HashMap<PackedF32, PlotCacher>
 }
 impl BigCacher {
+    const VERSION: u64 = 1;
     pub fn new() -> Self {
-        Self { cache: HashMap::new() }
+        Self { cache: HashMap::new(), version: Self::VERSION }
     }
     pub fn at(&mut self, T: f32) -> &mut PlotCacher {
         let key = PackedF32(T);
@@ -93,5 +98,50 @@ impl BigCacher {
             self.cache.insert(key, PlotCacher::new());
         }
         return self.cache.get_mut(&key).unwrap();
+    }
+    pub fn save(&self) -> std::io::Result<()> {
+        use std::io::{Error, ErrorKind};
+        let dirs = ProjectDirs::from("app", "Quickmarble", "censor")
+            .ok_or(
+                Error::new(ErrorKind::Other, "couldn't choose app cache directory")
+            )?;
+        let cache_path = dirs.cache_dir();
+        std::fs::create_dir_all(cache_path)?;
+        let cache_file = cache_path.join("cache.bin");
+        let encoded = bincode::serialize(self)
+            .map_err(
+                |_| Error::new(ErrorKind::Other, "couldn't encode cache")
+            )?;
+        std::fs::write(cache_file, encoded)
+    }
+    pub fn load() -> std::io::Result<Self> {
+        use std::io::{Error, ErrorKind};
+        let dirs = ProjectDirs::from("app", "Quickmarble", "censor")
+            .ok_or(
+                Error::new(ErrorKind::Other, "couldn't choose app cache directory")
+            )?;
+        let cache_path = dirs.cache_dir();
+        let cache_file = cache_path.join("cache.bin");
+        let encoded = std::fs::read(cache_file)?;
+        let decoded: Self = bincode::deserialize(encoded.as_slice())
+            .map_err(
+                |_| Error::new(ErrorKind::Other, "couldn't decode cache")
+            )?;
+        if decoded.version == Self::VERSION {
+            return Ok(decoded);
+        } else {
+            return Ok(Self::new());
+        }
+    }
+    pub fn init(verbose: bool) -> Self {
+        match Self::load() {
+            Ok(x) => { x }
+            Err(e) => {
+                if verbose {
+                    eprintln!("Cache loading failed: {}", e);
+                }
+                Self::new()
+            }
+        }
     }
 }

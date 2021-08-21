@@ -1,4 +1,5 @@
 use image::Rgb;
+use serde::{Serialize, Deserialize};
 
 use crate::util::{Clip, CyclicClip, Lerp};
 
@@ -483,7 +484,7 @@ impl CAT16Illuminant {
     }
 }
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct CAM16UCS {
     pub J: f32,
     pub a: f32,

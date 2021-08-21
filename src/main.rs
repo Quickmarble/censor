@@ -20,7 +20,7 @@ use stdweb;
 use crate::colour::*;
 use crate::palette::*;
 use crate::text::Font;
-use crate::cache::PlotCacher;
+use crate::cache::*;
 use crate::analyse::*;
 use crate::loader::*;
 
@@ -61,12 +61,13 @@ fn main() {
     }
 
     let font = Font::new();
-    let mut cacher = PlotCacher::new();
+    let mut cacher = BigCacher::init(false);
     let T = 5500.;
+    let cache = cacher.at(T);
 
     let grey_ui = false;
 
-    analyse(&colours, T, &mut cacher, &font, grey_ui, "output".into(), true);
+    analyse(&colours, T, cache, &font, grey_ui, "output".into(), true);
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -145,7 +146,7 @@ fn main_analyse<'a>(matches: &clap::ArgMatches<'a>) {
     }
 
     let font = Font::new();
-    let mut cacher = PlotCacher::new();
+    let mut cacher = BigCacher::init(verbose);
     let T: f32;
     if let Some(D) = matches.value_of("D") {
         match D {
@@ -166,6 +167,7 @@ fn main_analyse<'a>(matches: &clap::ArgMatches<'a>) {
             }
         };
     }
+    let cache = cacher.at(T);
 
     let colours = palette_from_cmd(matches, verbose);
 
@@ -177,7 +179,13 @@ fn main_analyse<'a>(matches: &clap::ArgMatches<'a>) {
         }
     }
 
-    analyse(&colours, T, &mut cacher, &font, grey_ui, outfile, verbose);
+    analyse(&colours, T, cache, &font, grey_ui, outfile, verbose);
+
+    if let Err(e) = cacher.save() {
+        if verbose {
+            eprintln!("Error saving cache: {}", e);
+        }
+    }
 }
 
 fn main_daemon<'a>(matches: &clap::ArgMatches<'a>) {
