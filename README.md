@@ -62,20 +62,20 @@ $ censor daemon -p 8008
 ```
 Once the daemon is running, send commands
 after connecting to the port (one command per connection).
-The syntax of the only currently supported command:
+The syntax is the same as for the command-line app, but:
+1. You should omit the first `censor`.
+2. The `daemon` command is not available.
+3. The `-o` option for `analyse` is no longer optional.
+
+An example of a valid palette analysis request
+(assuming that the daemon is started on port 9876
+on a Linux/Mac machine):
 ```
-analyse <hex|img|file>://DATA OUTPUT
+$ echo "analyse -l antiquity16 -o plot.png" | nc localhost 9876
 ```
-`hex://`: `DATA` is a comma-separated list of colour hexcodes.
-
-`img://`: `DATA` is the input image path.
-
-`file://`: `DATA` is the input newline-separated hexcode list path.
-
-`OUTPUT` is the output image path.
 
 On success, `OK` is returned. On error, `ERR` is returned and
-more info is printed into daemon's stderr.
+more error info is printed in the next lines and also into daemon's `stderr`.
 
 ## Features
 - Analyse palettes of 2-256 colours

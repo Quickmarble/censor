@@ -1,6 +1,6 @@
 [package]
 name = "censor-analyser"
-version = "0.3.4"
+version = "0.4.0"
 authors = ["Quickmarble"]
 repository = "https://github.com/Quickmarble/censor"
 description = "Palette analysis tool"
@@ -19,14 +19,13 @@ path = "src/main.rs"
 json = "0.12.4"
 const_format = "0.2.17"
 escape_string = "0.1.1"
+clap = "2.33.3"
+image = "0.23.14"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-image = "0.23.14"
-clap = "2.33.3"
 ureq = "2.1.1"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-image = { version = "0.23.14", default-features = false, features = ["png"] }
 stdweb = "0.4.20"
 console_error_panic_hook = "0.1.6"
 hex = "0.4.3"

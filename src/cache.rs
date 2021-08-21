@@ -1,4 +1,4 @@
-use crate::util::{Clip, CyclicClip};
+use crate::util::{Clip, CyclicClip, PackedF32};
 use crate::colour::*;
 
 use std::collections::HashMap;
@@ -76,5 +76,22 @@ impl PlotCacher {
 
         return boundary;
     }
-    // TODO: save/load once daemon mode is ready
+    // TODO: save/load
+}
+
+#[derive(Clone)]
+pub struct BigCacher {
+    cache: HashMap<PackedF32, PlotCacher>
+}
+impl BigCacher {
+    pub fn new() -> Self {
+        Self { cache: HashMap::new() }
+    }
+    pub fn at(&mut self, T: f32) -> &mut PlotCacher {
+        let key = PackedF32(T);
+        if !self.cache.contains_key(&key) {
+            self.cache.insert(key, PlotCacher::new());
+        }
+        return self.cache.get_mut(&key).unwrap();
+    }
 }
