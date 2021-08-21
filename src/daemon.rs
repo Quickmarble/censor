@@ -90,7 +90,7 @@ fn process<'a, 'b>(mut stream: TcpStream, parser: clap::App<'a, 'b>,
 }
 
 fn palette_from_cmd<'a>(matches: &clap::ArgMatches<'a>, verbose: bool)
-            -> Result<Vec<RGB255>, String> {
+            -> Result<LoadedPalette, String> {
     let list_provided = matches.value_of("colours").is_some();
     let file_provided = matches.value_of("hexfile").is_some();
     let slug_provided = matches.value_of("lospec").is_some();
@@ -123,13 +123,13 @@ fn palette_from_cmd<'a>(matches: &clap::ArgMatches<'a>, verbose: bool)
             return Err("Impossible happened! Blame the `clap` library. Report this error.".into());
         }
     }
-    let colours = match result {
+    let palette = match result {
         Ok(x) => { x }
         Err(e) => {
             return Err(format!("Error while getting palette: {:?}", e));
         }
     };
-    return Ok(colours);
+    return Ok(palette);
 }
 
 fn daemon_analyse<'a>(stream: &mut TcpStream, matches: &clap::ArgMatches<'a>,
@@ -162,19 +162,19 @@ fn daemon_analyse<'a>(stream: &mut TcpStream, matches: &clap::ArgMatches<'a>,
 
     let cache = cacher.at(T);
 
-    let colours = match palette_from_cmd(matches, verbose) {
+    let palette = match palette_from_cmd(matches, verbose) {
         Ok(x) => { x }
         Err(e) => { return abort(stream, e); }
     };
 
-    match check_palette(&colours) {
+    match check_palette(&palette.colours) {
         Ok(_) => {}
         Err(e) => {
             return abort(stream, format!("Error while validating palette: {:?}", e));
         }
     }
 
-    analyse(&colours, T, cache, &font, grey_ui, outfile, verbose);
+    analyse(&palette, T, cache, &font, grey_ui, outfile, verbose);
     let _ = stream.write("OK\n".as_bytes());
 
     if let Err(e) = cacher.save() {
@@ -205,11 +205,11 @@ fn daemon_compute<'a>(stream: &mut TcpStream, matches: &clap::ArgMatches<'a>) {
     }
     let ill = CAT16Illuminant::new(CIExy::from_T(T));
 
-    let colours = match palette_from_cmd(matches, false) {
+    let palette = match palette_from_cmd(matches, false) {
         Ok(x) => { x }
         Err(e) => { return abort(stream, e); }
     };
-    let palette = Palette::new(colours.clone(), &ill, false);
+    let palette = Palette::new(palette.colours.clone(), &ill, false);
 
     let metrics = ["iss", "acyclic"];
 

@@ -1,6 +1,6 @@
 [package]
 name = "censor-analyser"
-version = "0.4.1"
+version = "0.4.2"
 authors = ["Quickmarble"]
 repository = "https://github.com/Quickmarble/censor"
 description = "Palette analysis tool"
@@ -24,6 +24,7 @@ image = "0.23.14"
 directories = "3.0.2"
 serde = { version = "1.0.127", features = ["derive"] }
 bincode = "1.3.3"
+img-parts = "0.2.3"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 ureq = "2.1.1"

@@ -1,5 +1,6 @@
 #[cfg(not(target_arch = "wasm32"))]
 use ureq;
+use img_parts::{png::Png, jpeg::Jpeg, ImageICC};
 
 #[cfg(not(target_arch = "wasm32"))]
 use image::io::Reader as ImageReader;
@@ -53,8 +54,25 @@ pub enum LoadError {
     NotFound
 }
 
+#[derive(Clone)]
+pub struct LoadedPalette {
+    pub colours: Vec<RGB255>,
+    pub icc_profile: Option<img_parts::Bytes>
+}
+impl LoadedPalette {
+    pub fn new(colours: Vec<RGB255>) -> Self {
+        Self { colours, icc_profile: None }
+    }
+    pub fn with_icc_profile(self, profile: img_parts::Bytes) -> Self {
+        Self {
+            colours: self.colours,
+            icc_profile: Some(profile)
+        }
+    }
+}
+
 #[cfg(not(target_arch = "wasm32"))]
-pub fn load_from_image(filename: String) -> Result<Vec<RGB255>, LoadError> {
+pub fn load_from_image(filename: String) -> Result<LoadedPalette, LoadError> {
     let image = ImageReader::open(&filename)
         .map_err(|e| LoadError::FileOpen(e))?
         .decode().map_err(|e| LoadError::ImageEncoding(e))?
@@ -74,11 +92,33 @@ pub fn load_from_image(filename: String) -> Result<Vec<RGB255>, LoadError> {
             }
         }
     }
-    return Ok(colours);
+
+    let mut icc_profile = None;
+    if filename.ends_with(".png") {
+        if let Ok(data) = std::fs::read(&filename) {
+            if let Ok(png) = Png::from_bytes(data.into()) {
+                icc_profile = png.icc_profile();
+            }
+        }
+    }
+    if filename.ends_with(".jpg") || filename.ends_with("jpeg") {
+        if let Ok(data) = std::fs::read(&filename) {
+            if let Ok(jpeg) = Jpeg::from_bytes(data.into()) {
+                icc_profile = jpeg.icc_profile();
+            }
+        }
+    }
+
+    let mut palette = LoadedPalette::new(colours);
+    if let Some(profile) = icc_profile {
+        palette = palette.with_icc_profile(profile);
+    }
+
+    return Ok(palette);
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub fn load_from_lospec(slug: String) -> Result<Vec<RGB255>, LoadError> {
+pub fn load_from_lospec(slug: String) -> Result<LoadedPalette, LoadError> {
     let url = format!("https://lospec.com/palette-list/{}.csv", slug);
     let csv = ureq::get(&url)
         .set("User-Agent", &format!("censor v{}", metadata::VERSION))
@@ -90,12 +130,12 @@ pub fn load_from_lospec(slug: String) -> Result<Vec<RGB255>, LoadError> {
     let colours = csv.split(',')
         .skip(2)
         .map(|s| parse_hex(s.into()))
-        .collect::<Result<Vec<_>, _>>();
-    return colours;
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok(LoadedPalette::new(colours))
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub fn load_from_file(filename: String) -> Result<Vec<RGB255>, LoadError> {
+pub fn load_from_file(filename: String) -> Result<LoadedPalette, LoadError> {
     let mut colours = vec![];
     let file = std::fs::File::open(filename).map_err(|e| LoadError::FileOpen(e))?;
     let reader = std::io::BufReader::new(file);
@@ -104,13 +144,14 @@ pub fn load_from_file(filename: String) -> Result<Vec<RGB255>, LoadError> {
         let c = parse_hex(line)?;
         colours.push(c);
     }
-    return Ok(colours);
+    Ok(LoadedPalette::new(colours))
 }
 
-pub fn load_from_hex(data: &Vec<String>) -> Result<Vec<RGB255>, LoadError> {
-    data.iter()
+pub fn load_from_hex(data: &Vec<String>) -> Result<LoadedPalette, LoadError> {
+    let colours = data.iter()
         .map(|s| parse_hex(s.clone()))
-        .collect::<Result<Vec<_>, _>>()
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok(LoadedPalette::new(colours))
 }
 
 fn parse_hex(x: String) -> Result<RGB255, LoadError> {

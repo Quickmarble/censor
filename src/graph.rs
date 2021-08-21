@@ -1,6 +1,7 @@
 #[cfg(target_arch = "wasm32")]
 use hex;
 use image::{RgbImage, Rgb};
+use img_parts::{png::Png, ImageICC};
 
 use crate::text::*;
 use crate::cache::*;
@@ -23,13 +24,22 @@ impl<T: GraphPixel> PixelWriter<T> for ImageGraph {
 #[derive(Clone)]
 pub struct ImageGraph {
     buffer: RgbImage,
+    icc_profile: Option<img_parts::Bytes>,
     w: u32,
     h: u32
 }
 impl ImageGraph {
     pub fn new(w: u32, h: u32) -> Self {
         let buffer = RgbImage::new(w, h);
-        Self { buffer, w, h }
+        Self { buffer, w, h, icc_profile: None }
+    }
+    pub fn with_icc_profile(self, profile: img_parts::Bytes) -> Self {
+        Self {
+            buffer: self.buffer,
+            icc_profile: Some(profile),
+            w: self.w,
+            h: self.h
+        }
     }
     pub fn put_pixel<T: GraphPixel>(&mut self, x: i32, y: i32, c: T) {
         if x < 0 || y < 0 {
@@ -297,6 +307,26 @@ impl ImageGraph {
     }
     #[cfg(not(target_arch = "wasm32"))]
     pub fn save(&self, name: String) -> Result<(), image::ImageError> {
-        self.buffer.save(name)
+        self.buffer.save(&name)?;
+
+        // Writes an ICC profile if should.
+        // Fails silently.
+        if let Some(ref icc_profile) = self.icc_profile {
+            let data = match std::fs::read(&name) {
+                Ok(x) => { x }
+                Err(_) => { return Ok(()); }
+            };
+            let mut png = match Png::from_bytes(data.into()) {
+                Ok(x) => { x }
+                Err(_) => { return Ok(()); }
+            };
+            png.set_icc_profile(Some(icc_profile.clone()));
+            let file = match std::fs::File::create(&name) {
+                Ok(x) => { x }
+                Err(_) => { return Ok(()); }
+            };
+            let _ = png.encoder().write_to(file);
+        }
+        Ok(())
     }
 }

@@ -1,5 +1,6 @@
 use crate::colour::*;
 use crate::palette::*;
+use crate::loader::LoadedPalette;
 use crate::text::*;
 use crate::graph::*;
 use crate::cache::PlotCacher;
@@ -9,17 +10,20 @@ use crate::metadata;
 use std::f32::consts::PI;
 
 pub fn analyse(
-            colours: &Vec<RGB255>, T: f32,
+            colours: &LoadedPalette, T: f32,
             cacher: &mut PlotCacher, font: &Font, grey_ui: bool,
             fname: String, verbose: bool) {
     if verbose { eprintln!("Starting analysis."); }
     let ill = CAT16Illuminant::new(CIExy::from_T(T));
-    let palette = Palette::new(colours.clone(), &ill, grey_ui);
+    let palette = Palette::new(colours.colours.clone(), &ill, grey_ui);
 
     let w: i32 = 640;
     let h: i32 = 432;
 
     let mut graph = ImageGraph::new(w as u32, h as u32);
+    if let Some(ref profile) = colours.icc_profile {
+        graph = graph.with_icc_profile(profile.clone());
+    }
     graph.block(0, 0, w, h, palette.bg_rgb);
     if verbose { eprintln!("Created the canvas."); }
 

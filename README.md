@@ -31,6 +31,9 @@ in Kelvins, 5500 by default;
 the option `-T` may be used to redefine T;
 the option `-D` may be used for the following presets:
 `-D50`, `-D55`, `-D65`.
+If the input image is png or jpeg and it
+has an embedded colour profile, that
+profile will be copied into the analysis image.
 
 Analyse a palette from an image `input.png`:
 ```

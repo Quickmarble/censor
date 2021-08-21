@@ -45,14 +45,14 @@ fn main() {
         .map(|s| String::from(s))
         .collect();
     let result = load_from_hex(&hex_list);
-    let colours = match result {
+    let palette = match result {
         Ok(x) => { x }
         Err(e) => {
             eprintln!("Error while getting palette: {:?}", e);
             return;
         }
     };
-    match check_palette(&colours) {
+    match check_palette(&palette.colours) {
         Ok(_) => {}
         Err(e) => {
             eprintln!("Error while validating palette: {:?}", e);
@@ -67,7 +67,7 @@ fn main() {
 
     let grey_ui = false;
 
-    analyse(&colours, T, cache, &font, grey_ui, "output".into(), true);
+    analyse(&palette, T, cache, &font, grey_ui, "output".into(), true);
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -92,7 +92,8 @@ fn main() {
     std::process::exit(1);
 }
 
-fn palette_from_cmd<'a>(matches: &clap::ArgMatches<'a>, verbose: bool) -> Vec<RGB255> {
+fn palette_from_cmd<'a>(matches: &clap::ArgMatches<'a>, verbose: bool)
+            -> LoadedPalette {
     let list_provided = matches.value_of("colours").is_some();
     let file_provided = matches.value_of("hexfile").is_some();
     let slug_provided = matches.value_of("lospec").is_some();
@@ -126,14 +127,14 @@ fn palette_from_cmd<'a>(matches: &clap::ArgMatches<'a>, verbose: bool) -> Vec<RG
             std::process::exit(1);
         }
     }
-    let colours = match result {
+    let palette = match result {
         Ok(x) => { x }
         Err(e) => {
             eprintln!("Error while getting palette: {:?}", e);
             std::process::exit(1);
         }
     };
-    return colours;
+    return palette;
 }
 
 fn main_analyse<'a>(matches: &clap::ArgMatches<'a>) {
@@ -169,9 +170,9 @@ fn main_analyse<'a>(matches: &clap::ArgMatches<'a>) {
     }
     let cache = cacher.at(T);
 
-    let colours = palette_from_cmd(matches, verbose);
+    let palette = palette_from_cmd(matches, verbose);
 
-    match check_palette(&colours) {
+    match check_palette(&palette.colours) {
         Ok(_) => {}
         Err(e) => {
             eprintln!("Error while validating palette: {:?}", e);
@@ -179,7 +180,7 @@ fn main_analyse<'a>(matches: &clap::ArgMatches<'a>) {
         }
     }
 
-    analyse(&colours, T, cache, &font, grey_ui, outfile, verbose);
+    analyse(&palette, T, cache, &font, grey_ui, outfile, verbose);
 
     if let Err(e) = cacher.save() {
         if verbose {
@@ -231,8 +232,8 @@ fn main_compute<'a>(matches: &clap::ArgMatches<'a>) {
     }
     let ill = CAT16Illuminant::new(CIExy::from_T(T));
 
-    let colours = palette_from_cmd(matches, false);
-    let palette = Palette::new(colours.clone(), &ill, false);
+    let palette = palette_from_cmd(matches, false);
+    let palette = Palette::new(palette.colours.clone(), &ill, false);
 
     let metrics = ["iss", "acyclic"];
 
