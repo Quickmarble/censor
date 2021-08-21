@@ -135,23 +135,23 @@ pub fn analyse(
     let sdist_y = inner_y + 124;
     let sdist_w = 100;
     let sdist_h = 36;
-    graph.text("spectral distribution",
-               sdist_x + sdist_w / 2, sdist_y, TextAnchor::s(), font,
-               palette.fg_rgb);
     let sdist = SpectralDistributionWidget::new(sdist_w, sdist_h);
     if verbose { eprintln!("SpectralDistribution in progress..."); }
     sdist.render(&mut graph, cacher, &palette, &ill, font, sdist_x, sdist_y);
+    graph.text("spectral distribution",
+               sdist_x + sdist_w / 2, sdist_y, TextAnchor::s(), font,
+               palette.fg_rgb);
 
     let tdist_x = inner_x + 203;
     let tdist_y = inner_y + 170;
     let tdist_w = 100;
     let tdist_h = 36;
-    graph.text("temperature",
-               tdist_x + tdist_w / 2, tdist_y - 1, TextAnchor::s(), font,
-               palette.fg_rgb);
     let tdist = TemperatureDistributionWidget::new(tdist_w, tdist_h);
     if verbose { eprintln!("TemperatureDistribution in progress..."); }
     tdist.render(&mut graph, cacher, &palette, &ill, font, tdist_x, tdist_y);
+    graph.text("temperature",
+               tdist_x + tdist_w / 2, tdist_y - 1, TextAnchor::s(), font,
+               palette.fg_rgb);
 
     let limatch_x = inner_x + 305;
     let limatch_w = 34;

@@ -502,7 +502,8 @@ impl Widget for DistributionWidget {
         let mut marks = vec![0; plot_w as usize];
         for &(i, xx) in dist_points.iter() {
             let c = palette.rgb[i];
-            let xi = ((xx * (plot_w - 1) as f32) as i32).clip(0, plot_w - 1);
+            let xi = (xx * (plot_w - 1) as f32) as i32;
+            if xi < 0 || xi > plot_w - 1 { continue; }
             let x = plot_x + xi;
             let yy_max = (((plot_h - 1) as f32 * data[xi as usize]) as i32).clip(0, plot_h - 1) + 1;
             let y = y0 + self.h - 2 - (marks[xi as usize] % yy_max);
