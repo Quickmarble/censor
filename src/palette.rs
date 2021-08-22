@@ -1,14 +1,16 @@
+use vpsearch::Tree;
+
 use crate::util::{Clip, PackedF32};
 use crate::colour::*;
 
 use std::collections::{HashMap, HashSet};
 
-#[derive(Clone)]
 pub struct Palette {
     pub n: usize,
     pub rgb: Vec<RGB255>,
     pub xyz: Vec<CIEXYZ>,
     pub cam16: Vec<CAM16UCS>,
+    tree: Tree<CAM16UCS>,
     pub sorted: Vec<usize>,
     pub bl: usize,
     pub bg: usize,
@@ -28,6 +30,7 @@ impl Palette {
         let cam16: Vec<CAM16UCS> = xyz.iter()
             .map(|&XYZ| CAM16UCS::of(XYZ, ill))
             .collect();
+        let tree = Tree::new(cam16.as_slice());
         let mut sorted: Vec<(usize, CAM16UCS)> = cam16.iter()
             .zip(0..)
             .map(|(&c, i)| (i, c))
@@ -62,7 +65,7 @@ impl Palette {
         let bg_rgb = if grey_ui { RGB255::new(127, 127, 127) } else { rgb[bg] };
         let fg_rgb = if grey_ui { RGB255::new(255, 255, 255) } else { rgb[fg] };
         let tl_rgb = if grey_ui { RGB255::new(255, 255, 255) } else { rgb[tl] };
-        Palette { n, rgb, xyz, cam16, sorted, bl, bg, fg, tl, bl_rgb, bg_rgb, fg_rgb, tl_rgb }
+        Palette { n, rgb, xyz, cam16, tree, sorted, bl, bg, fg, tl, bl_rgb, bg_rgb, fg_rgb, tl_rgb }
     }
     fn minimise<F: Fn(usize, CAM16UCS) -> f32>(cam16: &Vec<CAM16UCS>, score: F) -> usize {
         let mut min = f32::MAX;
@@ -77,17 +80,8 @@ impl Palette {
         return argmin;
     }
     pub fn nearest(&self, x: CAM16UCS) -> RGB255 {
-        let mut min = f32::MAX;
-        let mut argmin = 0;
-        for i in 0..self.n {
-            let y = self.cam16[i];
-            let d = CAM16UCS::dist(&x, &y);
-            if d < min {
-                argmin = i;
-                min = d;
-            }
-        }
-        return self.rgb[argmin];
+        let (i, _) = self.tree.find_nearest(&x);
+        return self.rgb[i];
     }
     pub fn nearest_limatch(&self, x: CAM16UCS, t: f32) -> RGB255 {
         let mut min = f32::MAX;

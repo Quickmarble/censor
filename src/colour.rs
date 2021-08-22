@@ -1,5 +1,6 @@
 use image::Rgb;
 use serde::{Serialize, Deserialize};
+use vpsearch::MetricSpace;
 
 use crate::util::{Clip, CyclicClip, Lerp};
 
@@ -582,5 +583,13 @@ impl CAM16UCS {
             b: f32::interpolate(one.b, another.b, a),
             C: f32::interpolate(one.C, another.C, a)
         }
+    }
+}
+impl MetricSpace for CAM16UCS {
+    type UserData = ();
+    type Distance = f32;
+
+    fn distance(&self, other: &Self, _: &Self::UserData) -> Self::Distance {
+        CAM16UCS::dist(self, other)
     }
 }
