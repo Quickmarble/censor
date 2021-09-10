@@ -25,6 +25,8 @@ use crate::analyse::*;
 use crate::loader::*;
 
 use std::collections::HashMap;
+use std::sync::{Arc, RwLock};
+use std::rc::Rc;
 
 // TODO: WASM integration
 // TODO: colour blindness widgets!
@@ -140,6 +142,7 @@ fn palette_from_cmd<'a>(matches: &clap::ArgMatches<'a>, verbose: bool)
 fn main_analyse<'a>(matches: &clap::ArgMatches<'a>) {
     let verbose = matches.is_present("verbose");
     let grey_ui = matches.is_present("grey_ui");
+    let multithreaded = matches.is_present("multithreaded");
 
     let mut outfile: String = matches.value_of("outfile").unwrap_or("plot.png").into();
     if !outfile.ends_with(".png") {
@@ -168,7 +171,7 @@ fn main_analyse<'a>(matches: &clap::ArgMatches<'a>) {
             }
         };
     }
-    let cache = cacher.at(T);
+    let ill = CAT16Illuminant::new(CIExy::from_T(T));
 
     let palette = palette_from_cmd(matches, verbose);
 
@@ -180,7 +183,33 @@ fn main_analyse<'a>(matches: &clap::ArgMatches<'a>) {
         }
     }
 
-    analyse(&palette, T, cache, &font, grey_ui, outfile, verbose);
+    if !multithreaded {
+        let cache_provider = SinglethreadedCacheProvider::new(T, &ill, &mut cacher);
+        let cache = Rc::new(RwLock::new(cache_provider));
+        analyse_singlethreaded(&palette, T, cache, Rc::new(font), grey_ui, outfile, verbose);
+    } else {
+        let mut cache_hoster = CacheHoster::new(&mut cacher);
+        let (cp_req_send, cp_req_recv) = crossbeam_channel::bounded(0);
+        let (cp_send, cp_recv) = crossbeam_channel::bounded(0);
+        let handle = std::thread::spawn(move || {
+            analyse_multithreaded(
+                &palette, T, cp_req_send, cp_recv,
+                Arc::new(font), grey_ui, outfile, verbose
+            );
+        });
+        loop {
+            match cp_req_recv.recv() {
+                Ok(()) => {
+                    let (recv, send) = cache_hoster.register();
+                    let cache_provider = MultithreadedCacheProvider::new(T, ill, send, recv);
+                    cp_send.send(cache_provider).unwrap();
+                }
+                Err(_) => { break; }
+            }
+        }
+        cache_hoster.process();
+        handle.join().unwrap();
+    }
 
     if let Err(e) = cacher.save() {
         if verbose {

@@ -420,6 +420,11 @@ pub struct CAT16Illuminant {
     pub B_aw: f32,
     pub A_w: f32
 }
+impl AsRef<CAT16Illuminant> for &CAT16Illuminant {
+    fn as_ref(&self) -> &CAT16Illuminant {
+        self
+    }
+}
 impl CAT16Illuminant {
     pub fn new(xy: CIExy) -> Self {
         let x = xy.x;

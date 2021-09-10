@@ -12,6 +12,7 @@ pub fn cmd_parser<'a, 'b>() -> App<'a, 'b> {
     let (interp_groups, interp_args) = interpretation_args();
     let (metrics_group, metrics_args) = metrics_args();
     let (repr_groups, repr_args) = representation_args();
+    let (comp_groups, comp_args) = computation_args();
     let verbose = verbose_arg();
 
     let daemon = SubCommand::with_name("daemon")
@@ -35,6 +36,8 @@ pub fn cmd_parser<'a, 'b>() -> App<'a, 'b> {
         .args(interp_args.as_slice())
         .groups(repr_groups.as_slice())
         .args(repr_args.as_slice())
+        .groups(comp_groups.as_slice())
+        .args(comp_args.as_slice())
         .arg(
             Arg::with_name("outfile")
                 .short("o")
@@ -186,6 +189,17 @@ fn representation_args<'a, 'b>() -> (Vec<ArgGroup<'a>>, Vec<Arg<'a, 'b>>) {
             .short("g")
             .long("grey")
             .help("Uses black, grey and white for UI instead of choosing palette colours")
+    ];
+    return (groups, args);
+}
+
+fn computation_args<'a, 'b>() -> (Vec<ArgGroup<'a>>, Vec<Arg<'a, 'b>>) {
+    let groups = vec![];
+    let args = vec![
+        Arg::with_name("multithreaded")
+            .short("j")
+            .long("multithreaded")
+            .help("Does computations in multiple threads")
     ];
     return (groups, args);
 }

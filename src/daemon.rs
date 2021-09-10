@@ -11,6 +11,8 @@ use crate::metadata;
 use std::io::{BufRead, Write};
 use std::net::{TcpListener, TcpStream};
 use std::collections::HashMap;
+use std::sync::{Arc, RwLock};
+use std::rc::Rc;
 
 pub fn run(port: u16, verbose: bool) -> std::io::Result<()> {
     let listener = TcpListener::bind(&format!("127.0.0.1:{}", port))?;
@@ -22,10 +24,12 @@ pub fn run(port: u16, verbose: bool) -> std::io::Result<()> {
     let font = Font::new();
     let mut cacher = BigCacher::init(true);
 
+    let font_ref = Arc::new(font);
+
     for stream in listener.incoming() {
         match stream {
             Ok(stream) => {
-                process(stream, parser.clone(), &font, &mut cacher, verbose);
+                process(stream, parser.clone(), font_ref.clone(), &mut cacher, verbose);
             }
             Err(e) => {
                 eprintln!("Daemon error: {}", e);
@@ -42,7 +46,7 @@ fn abort(stream: &mut TcpStream, reason: String) {
 }
 
 fn process<'a, 'b>(mut stream: TcpStream, parser: clap::App<'a, 'b>,
-            font: &Font, cacher: &mut BigCacher, verbose: bool) {
+            font: Arc<Font>, cacher: &mut BigCacher, verbose: bool) {
     let reader = match stream.try_clone() {
         Ok(reader) => { reader }
         Err(e) => {
@@ -133,7 +137,7 @@ fn palette_from_cmd<'a>(matches: &clap::ArgMatches<'a>, verbose: bool)
 }
 
 fn daemon_analyse<'a>(stream: &mut TcpStream, matches: &clap::ArgMatches<'a>,
-            font: &Font, cacher: &mut BigCacher, verbose: bool) {
+            font: Arc<Font>, cacher: &mut BigCacher, verbose: bool) {
     let grey_ui = matches.is_present("grey_ui");
 
     let mut outfile: String = matches.value_of("outfile").unwrap().into();
@@ -160,8 +164,6 @@ fn daemon_analyse<'a>(stream: &mut TcpStream, matches: &clap::ArgMatches<'a>,
         };
     }
 
-    let cache = cacher.at(T);
-
     let palette = match palette_from_cmd(matches, verbose) {
         Ok(x) => { x }
         Err(e) => { return abort(stream, e); }
@@ -174,7 +176,12 @@ fn daemon_analyse<'a>(stream: &mut TcpStream, matches: &clap::ArgMatches<'a>,
         }
     }
 
-    analyse(&palette, T, cache, &font, grey_ui, outfile, verbose);
+    let ill = CAT16Illuminant::new(CIExy::from_T(T));
+
+    let cache_provider = SinglethreadedCacheProvider::new(T, &ill, cacher);
+    let cache = Rc::new(RwLock::new(cache_provider));
+    analyse_singlethreaded(&palette, T, cache, font, grey_ui, outfile, verbose);
+
     let _ = stream.write("OK\n".as_bytes());
 
     if let Err(e) = cacher.save() {

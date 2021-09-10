@@ -34,6 +34,8 @@ the option `-D` may be used for the following presets:
 If the input image is png or jpeg and it
 has an embedded colour profile, that
 profile will be copied into the analysis image.
+Specify `-j` to test the experimental multithreaded
+mode.
 
 Analyse a palette from an image `input.png`:
 ```

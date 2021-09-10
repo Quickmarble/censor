@@ -2,6 +2,7 @@
 use hex;
 use image::{RgbImage, Rgb};
 use img_parts::{png::Png, ImageICC};
+use crossbeam_channel::{Receiver, Sender};
 
 use crate::text::*;
 use crate::cache::*;
@@ -27,6 +28,11 @@ pub struct ImageGraph {
     icc_profile: Option<img_parts::Bytes>,
     w: u32,
     h: u32
+}
+impl AsMut<ImageGraph> for ImageGraph {
+    fn as_mut(&mut self) -> &mut Self {
+        self
+    }
 }
 impl ImageGraph {
     pub fn new(w: u32, h: u32) -> Self {
@@ -240,10 +246,10 @@ impl ImageGraph {
             y += 1 + font.char_height(chars[i]);
         }
     }
-    pub fn plot<F: Fn(f32, f32) -> Option<CAM16UCS>>
-            (&mut self, cacher: &mut PlotCacher,
+    pub fn plot<F: Fn(f32, f32) -> Option<CAM16UCS>, P: CacheProvider, PR: AsRef<Palette>>
+            (&mut self, cacher: &mut P,
              x0: i32, y0: i32, w: i32, h: i32,
-             palette: &Palette, key: &str, f: F) {
+             palette: PR, key: &str, f: F) {
         let g = || {
             let mut plot_data = PlotData::<CAM16UCS>::empty(w as usize, h as usize);
             for i in 0..w {
@@ -255,12 +261,12 @@ impl ImageGraph {
             }
             return plot_data;
         };
-        self.plot_data(x0, y0, w, h, palette, cacher.get(key, g));
+        self.plot_data(x0, y0, w, h, palette, cacher.get_plot(key, g));
     }
-    pub fn plot_polar<F: Fn(f32, f32) -> Option<CAM16UCS>>
-            (&mut self, cacher: &mut PlotCacher,
+    pub fn plot_polar<F: Fn(f32, f32) -> Option<CAM16UCS>, P: CacheProvider, PR: AsRef<Palette>>
+            (&mut self, cacher: &mut P,
              x0: i32, y0: i32, w: i32, h: i32,
-             palette: &Palette, key: &str, f: F) {
+             palette: PR, key: &str, f: F) {
         let g = || {
             let mut plot_data = PlotData::<CAM16UCS>::empty(w as usize, h as usize);
             for i in 0..w {
@@ -277,11 +283,12 @@ impl ImageGraph {
             }
             return plot_data;
         };
-        self.plot_data(x0, y0, w, h, palette, cacher.get(key, g));
+        self.plot_data(x0, y0, w, h, palette, cacher.get_plot(key, g));
     }
-    fn plot_data(&mut self,
+    pub fn plot_data<PR: AsRef<Palette>>(&mut self,
             x0: i32, y0: i32, w: i32, h: i32,
-            palette: &Palette, data: &PlotData<CAM16UCS>) {
+            palette: PR, data: PlotData<CAM16UCS>) {
+        let palette = palette.as_ref();
         for i in 0..w {
             for j in 0..h {
                 match data.data[j as usize][i as usize] {
@@ -328,5 +335,227 @@ impl ImageGraph {
             let _ = png.encoder().write_to(file);
         }
         Ok(())
+    }
+}
+
+pub trait GraphProvider<T: GraphPixel>: PixelWriter<T> {
+    fn put_pixel(&mut self, x: i32, y: i32, c: T);
+    fn frame(&mut self, x0: i32, y0: i32, w: i32, h: i32, c: T);
+    fn block(&mut self, x0: i32, y0: i32, w: i32, h: i32, c: T);
+    fn dither(&mut self, x0: i32, y0: i32, w: i32, h: i32, c1: T, c2: T);
+    fn line(&mut self, x0: i32, y0: i32, x1: i32, y1: i32, c: T, dotted: Option<i32>);
+    fn circle(&mut self, x0: i32, y0: i32, d: i32, c: T, dotted: Option<i32>);
+    fn disc(&mut self, x0: i32, y0: i32, d: i32, c: T);
+    fn text(&mut self, s: &str, x0: i32, y0: i32, p: TextAnchor, font: &Font, c: T);
+    fn vtext(&mut self, s: &str, x0: i32, y0: i32, p: HorizontalTextAnchor, font: &Font, c: T);
+    fn plot<F: Fn(f32, f32) -> Option<CAM16UCS>, P: CacheProvider, PR: AsRef<Palette>>
+            (&mut self, cacher: &mut P,
+             x0: i32, y0: i32, w: i32, h: i32,
+             palette: PR, key: &str, f: F);
+    fn plot_polar<F: Fn(f32, f32) -> Option<CAM16UCS>, P: CacheProvider, PR: AsRef<Palette>>
+            (&mut self, cacher: &mut P,
+             x0: i32, y0: i32, w: i32, h: i32,
+             palette: PR, key: &str, f: F);
+}
+
+impl<T: GraphPixel> GraphProvider<T> for ImageGraph {
+    fn put_pixel(&mut self, x: i32, y: i32, c: T) {
+        self.put_pixel(x, y, c);
+    }
+    fn frame(&mut self, x0: i32, y0: i32, w: i32, h: i32, c: T) {
+        self.frame(x0, y0, w, h, c);
+    }
+    fn block(&mut self, x0: i32, y0: i32, w: i32, h: i32, c: T) {
+        self.block(x0, y0, w, h, c);
+    }
+    fn dither(&mut self, x0: i32, y0: i32, w: i32, h: i32, c1: T, c2: T) {
+        self.dither(x0, y0, w, h, c1, c2);
+    }
+    fn line(&mut self, x0: i32, y0: i32, x1: i32, y1: i32, c: T, dotted: Option<i32>) {
+        self.line(x0, y0, x1, y1, c, dotted);
+    }
+    fn circle(&mut self, x0: i32, y0: i32, d: i32, c: T, dotted: Option<i32>) {
+        self.circle(x0, y0, d, c, dotted);
+    }
+    fn disc(&mut self, x0: i32, y0: i32, d: i32, c: T) {
+        self.disc(x0, y0, d, c);
+    }
+    fn text(&mut self, s: &str, x0: i32, y0: i32, p: TextAnchor, font: &Font, c: T) {
+        self.text(s, x0, y0, p, font, c);
+    }
+    fn vtext(&mut self, s: &str, x0: i32, y0: i32, p: HorizontalTextAnchor, font: &Font, c: T) {
+        self.vtext(s, x0, y0, p, font, c);
+    }
+    fn plot<F: Fn(f32, f32) -> Option<CAM16UCS>, P: CacheProvider, PR: AsRef<Palette>>
+            (&mut self, cacher: &mut P,
+             x0: i32, y0: i32, w: i32, h: i32,
+             palette: PR, key: &str, f: F) {
+        self.plot(cacher, x0, y0, w, h, palette, key, f);
+    }
+    fn plot_polar<F: Fn(f32, f32) -> Option<CAM16UCS>, P: CacheProvider, PR: AsRef<Palette>>
+            (&mut self, cacher: &mut P,
+             x0: i32, y0: i32, w: i32, h: i32,
+             palette: PR, key: &str, f: F) {
+        self.plot_polar(cacher, x0, y0, w, h, palette, key, f);
+    }
+}
+
+pub enum GraphRequest<T: GraphPixel> {
+    Pixel { x: i32, y: i32, c: T },
+    Frame { x0: i32, y0: i32, w: i32, h: i32, c: T },
+    Block { x0: i32, y0: i32, w: i32, h: i32, c: T },
+    Dither { x0: i32, y0: i32, w: i32, h: i32, c1: T, c2: T },
+    Line { x0: i32, y0: i32, x1: i32, y1: i32, c: T, dotted: Option<i32> },
+    Circle { x0: i32, y0: i32, d: i32, c: T, dotted: Option<i32> },
+    Disc { x0: i32, y0: i32, d: i32, c: T },
+    Text { s: String, x0: i32, y0: i32, p: TextAnchor, c: T },
+    VText { s: String, x0: i32, y0: i32, p: HorizontalTextAnchor, c: T },
+    PlotData { x0: i32, y0: i32, w: i32, h: i32, data: PlotData<CAM16UCS> }
+}
+unsafe impl<T: GraphPixel> Send for GraphRequest<T> {}
+
+pub struct MultithreadedGraphProvider<T: GraphPixel> {
+    sender: Sender<GraphRequest<T>>
+}
+impl<T: GraphPixel> MultithreadedGraphProvider<T> {
+    pub fn new(sender: Sender<GraphRequest<T>>) -> Self {
+        Self { sender }
+    }
+}
+impl<T: GraphPixel> PixelWriter<T> for MultithreadedGraphProvider<T> {
+    fn put_pixel(&mut self, x: i32, y: i32, c: T) {
+        self.sender.send(GraphRequest::Pixel { x, y, c }).unwrap();
+    }
+}
+impl<T: GraphPixel> GraphProvider<T> for MultithreadedGraphProvider<T> {
+    fn put_pixel(&mut self, x: i32, y: i32, c: T) {
+        self.sender.send(GraphRequest::Pixel { x, y, c }).unwrap();
+    }
+    fn frame(&mut self, x0: i32, y0: i32, w: i32, h: i32, c: T) {
+        self.sender.send(GraphRequest::Frame { x0, y0, w, h, c }).unwrap();
+    }
+    fn block(&mut self, x0: i32, y0: i32, w: i32, h: i32, c: T) {
+        self.sender.send(GraphRequest::Block { x0, y0, w, h, c }).unwrap();
+    }
+    fn dither(&mut self, x0: i32, y0: i32, w: i32, h: i32, c1: T, c2: T) {
+        self.sender.send(GraphRequest::Dither { x0, y0, w, h, c1, c2 }).unwrap();
+    }
+    fn line(&mut self, x0: i32, y0: i32, x1: i32, y1: i32, c: T, dotted: Option<i32>) {
+        self.sender.send(GraphRequest::Line { x0, y0, x1, y1, c, dotted }).unwrap();
+    }
+    fn circle(&mut self, x0: i32, y0: i32, d: i32, c: T, dotted: Option<i32>) {
+        self.sender.send(GraphRequest::Circle { x0, y0, d, c, dotted }).unwrap();
+    }
+    fn disc(&mut self, x0: i32, y0: i32, d: i32, c: T) {
+        self.sender.send(GraphRequest::Disc { x0, y0, d, c }).unwrap();
+    }
+    fn text(&mut self, s: &str, x0: i32, y0: i32, p: TextAnchor, _font: &Font, c: T) {
+        self.sender.send(GraphRequest::Text { s: String::from(s), x0, y0, p, c }).unwrap();
+    }
+    fn vtext(&mut self, s: &str, x0: i32, y0: i32, p: HorizontalTextAnchor, _font: &Font, c: T) {
+        self.sender.send(GraphRequest::VText { s: String::from(s), x0, y0, p, c }).unwrap();
+    }
+    fn plot<F: Fn(f32, f32) -> Option<CAM16UCS>, P: CacheProvider, PR: AsRef<Palette>>
+            (&mut self, cacher: &mut P,
+             x0: i32, y0: i32, w: i32, h: i32,
+             _palette: PR, key: &str, f: F) {
+        let g = || {
+            let mut plot_data = PlotData::<CAM16UCS>::empty(w as usize, h as usize);
+            for i in 0..w {
+                let x = i as f32 / (w as f32 - 1.);
+                for j in 0..h {
+                    let y = (h - 1 - j) as f32 / (h as f32 - 1.);
+                    plot_data.data[j as usize][i as usize] = f(x, y);
+                }
+            }
+            return plot_data;
+        };
+        let data = cacher.get_plot(key, g);
+        self.sender.send(GraphRequest::PlotData { x0, y0, w, h, data }).unwrap();
+    }
+    fn plot_polar<F: Fn(f32, f32) -> Option<CAM16UCS>, P: CacheProvider, PR: AsRef<Palette>>
+            (&mut self, cacher: &mut P,
+             x0: i32, y0: i32, w: i32, h: i32,
+             _palette: PR, key: &str, f: F) {
+        let g = || {
+            let mut plot_data = PlotData::<CAM16UCS>::empty(w as usize, h as usize);
+            for i in 0..w {
+                let x = (i as f32 / (w - 1) as f32) * 2. - 1.;
+                for j in 0..h {
+                    let y = ((h - 1 - j) as f32 / (h - 1) as f32) * 2. - 1.;
+                    let r = f32::hypot(x, y);
+                    let a = f32::atan2(y, x) / (2. * std::f32::consts::PI);
+                    let a = a.cyclic_clip(1.);
+                    if r <= 1. {
+                        plot_data.data[j as usize][i as usize] = f(r, a);
+                    }
+                }
+            }
+            return plot_data;
+        };
+        let data = cacher.get_plot(key, g);
+        self.sender.send(GraphRequest::PlotData { x0, y0, w, h, data }).unwrap();
+    }
+}
+
+pub struct GraphHoster<'a, T: GraphPixel> {
+    palette: Palette,
+    font: Font,
+    connections: Vec<Receiver<GraphRequest<T>>>,
+    graph: &'a mut ImageGraph
+}
+impl<'a, T: GraphPixel> GraphHoster<'a, T> {
+    pub fn new(graph: &'a mut ImageGraph, palette: Palette, font: Font) -> Self {
+        Self { palette, font, graph, connections: vec![] }
+    }
+    pub fn register(&mut self) -> Sender<GraphRequest<T>> {
+        let (send, recv) = crossbeam_channel::bounded(0);
+        self.connections.push(recv);
+        return send;
+    }
+    pub fn process(&mut self) {
+        while self.connections.len() > 0 {
+            let mut select = crossbeam_channel::Select::new();
+            for recv in self.connections.iter() {
+                select.recv(recv);
+            }
+            let op = select.select();
+            let i = op.index();
+            match op.recv(&self.connections[i]) {
+                Ok(GraphRequest::Pixel { x, y, c }) => {
+                    self.graph.put_pixel(x, y, c);
+                }
+                Ok(GraphRequest::Frame { x0, y0, w, h, c }) => {
+                    self.graph.frame(x0, y0, w, h, c);
+                }
+                Ok(GraphRequest::Block { x0, y0, w, h, c }) => {
+                    self.graph.block(x0, y0, w, h, c);
+                }
+                Ok(GraphRequest::Dither { x0, y0, w, h, c1, c2 }) => {
+                    self.graph.dither(x0, y0, w, h, c1, c2);
+                }
+                Ok(GraphRequest::Line { x0, y0, x1, y1, c, dotted }) => {
+                    self.graph.line(x0, y0, x1, y1, c, dotted);
+                }
+                Ok(GraphRequest::Circle { x0, y0, d, c, dotted }) => {
+                    self.graph.circle(x0, y0, d, c, dotted);
+                }
+                Ok(GraphRequest::Disc { x0, y0, d, c }) => {
+                    self.graph.disc(x0, y0, d, c);
+                }
+                Ok(GraphRequest::Text { s, x0, y0, p, c }) => {
+                    self.graph.text(&s, x0, y0, p, &self.font, c);
+                }
+                Ok(GraphRequest::VText { s, x0, y0, p, c }) => {
+                    self.graph.vtext(&s, x0, y0, p, &self.font, c);
+                }
+                Ok(GraphRequest::PlotData { x0, y0, w, h, data }) => {
+                    self.graph.plot_data(x0, y0, w, h, &self.palette, data);
+                }
+                Err(_) => {
+                    self.connections.remove(i);
+                }
+            }
+        }
     }
 }

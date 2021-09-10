@@ -21,6 +21,33 @@ pub struct Palette {
     pub fg_rgb: RGB255,
     pub tl_rgb: RGB255
 }
+impl AsRef<Palette> for &Palette {
+    fn as_ref(&self) -> &Palette {
+        self
+    }
+}
+impl Clone for Palette {
+    fn clone(&self) -> Self {
+        let cam16 = self.cam16.clone();
+        let tree = Tree::new(cam16.as_slice());
+        Self {
+            n: self.n,
+            rgb: self.rgb.clone(),
+            xyz: self.xyz.clone(),
+            cam16,
+            tree,
+            sorted: self.sorted.clone(),
+            bl: self.bl,
+            bg: self.bg,
+            fg: self.fg,
+            tl: self.tl,
+            bl_rgb: self.bl_rgb,
+            bg_rgb: self.bg_rgb,
+            fg_rgb: self.fg_rgb,
+            tl_rgb: self.tl_rgb
+        }
+    }
+}
 impl Palette {
     pub fn new(rgb: Vec<RGB255>, ill: &CAT16Illuminant, grey_ui: bool) -> Self {
         let n = rgb.len();
@@ -100,8 +127,9 @@ impl Palette {
         let z = x.complementary();
         return Self::minimise(&self.cam16, |_, c| CAM16UCS::dist_limatch(z, c, 0.1));
     }
-    pub fn spectral_stats(&self, ill: &CAT16Illuminant)
+    pub fn spectral_stats<I: AsRef<CAT16Illuminant>>(&self, ill: I)
                 -> (HashMap<PackedF32, f32>, HashMap<usize, f32>) {
+        let ill = ill.as_ref();
         let mut stats = HashMap::new();
         let mut points = HashMap::new();
         let o = CIExy::from(CIEXYZ::new(ill.X_w, ill.Y_w, ill.Z_w));
