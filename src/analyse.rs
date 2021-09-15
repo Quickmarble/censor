@@ -51,6 +51,9 @@ pub fn analyse_multithreaded(
     graph.text(&format!("Illuminant: D(T={:.2}°K)", T),
                w - 2, 9, TextAnchor::ne(), font.as_ref(),
                palette.tl_rgb);
+    graph.text(metadata::REPO,
+               w - 3, h - 2, TextAnchor::se(), font.as_ref(),
+               palette.tl_rgb);
 
     fn init_state<'a, T: GraphPixel>(
                 graph: &'a mut ImageGraph,
@@ -173,6 +176,9 @@ pub fn analyse_singlethreaded<CP: CacheProvider, C: AsRef<RwLock<CP>>+Clone, FR:
                palette.tl_rgb);
     graph.text(&format!("Illuminant: D(T={:.2}°K)", T),
                w - 2, 9, TextAnchor::ne(), font.as_ref(),
+               palette.tl_rgb);
+    graph.text(metadata::REPO,
+               w - 3, h - 2, TextAnchor::se(), font.as_ref(),
                palette.tl_rgb);
 
     let graph_rw = Rc::new(RwLock::new(graph));

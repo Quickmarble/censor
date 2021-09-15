@@ -19,6 +19,15 @@ pub enum PaletteCheckError {
     TooManyColours(usize),
     Duplicates
 }
+impl std::fmt::Display for PaletteCheckError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::TooFewColours(n) => { write!(f, "Too few colours: {}", n) }
+            Self::TooManyColours(n) => { write!(f, "Too many colours: {}", n) }
+            Self::Duplicates => { write!(f, "Duplicated colours") }
+        }
+    }
+}
 
 pub fn check_palette(palette: &Vec<RGB255>) -> Result<(), PaletteCheckError> {
     let n = palette.len();
@@ -52,6 +61,78 @@ pub enum LoadError {
     ImageEncoding(image::ImageError),
 #[cfg(not(target_arch = "wasm32"))]
     NotFound
+}
+impl std::fmt::Display for LoadError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::InvalidHexLength => { write!(f, "Invalid hex colour length") }
+            Self::NonHexCharacters => { write!(f, "Invalid characters in hex colour") }
+            Self::FileOpen(ref e) => { e.fmt(f) }
+            Self::FileRead(ref e) => { e.fmt(f) }
+            Self::NetworkError(ref e) => { e.fmt(f) }
+            Self::InvalidEncoding(ref e) => { e.fmt(f) }
+            Self::ImageEncoding(ref e) => { e.fmt(f) }
+            Self::NotFound => { write!(f, "Palette not found") }
+        }
+    }
+}
+
+pub struct LoadedImage {
+    pub data: Vec<Vec<Option<RGB255>>>,
+    pub icc_profile: Option<img_parts::Bytes>
+}
+impl LoadedImage {
+    pub fn new(data: Vec<Vec<Option<RGB255>>>) -> Self {
+        Self { data, icc_profile: None }
+    }
+    pub fn with_icc_profile(self, profile: img_parts::Bytes) -> Self {
+        Self {
+            data: self.data,
+            icc_profile: Some(profile)
+        }
+    }
+}
+
+pub fn load_image(filename: String) -> Result<LoadedImage, LoadError> {
+    let image = ImageReader::open(&filename)
+        .map_err(|e| LoadError::FileOpen(e))?
+        .decode().map_err(|e| LoadError::ImageEncoding(e))?
+        .to_rgba8();
+    let w = image.width();
+    let h = image.height();
+    let mut data = vec![vec![None; w as usize]; h as usize];
+    for y in 0..h {
+        for x in 0..w {
+            let c = image.get_pixel(x, y);
+            let [r, g, b, a] = c.0;
+            if a == 0xff {
+                let c = RGB255::new(r, g, b);
+                data[y as usize][x as usize] = Some(c);
+            }
+        }
+    }
+
+    let mut icc_profile = None;
+    if filename.ends_with(".png") {
+        if let Ok(data) = std::fs::read(&filename) {
+            if let Ok(png) = Png::from_bytes(data.into()) {
+                icc_profile = png.icc_profile();
+            }
+        }
+    }
+    if filename.ends_with(".jpg") || filename.ends_with("jpeg") {
+        if let Ok(data) = std::fs::read(&filename) {
+            if let Ok(jpeg) = Jpeg::from_bytes(data.into()) {
+                icc_profile = jpeg.icc_profile();
+            }
+        }
+    }
+    
+    let mut image = LoadedImage::new(data);
+    if let Some(profile) = icc_profile {
+        image = image.with_icc_profile(profile);
+    }
+    return Ok(image);
 }
 
 #[derive(Clone)]

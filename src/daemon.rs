@@ -1,4 +1,7 @@
 use escape_string;
+use image::RgbImage;
+use img_parts::{png::Png, ImageICC};
+use text_io::scan;
 
 use crate::text::Font;
 use crate::cache::*;
@@ -6,6 +9,7 @@ use crate::analyse::*;
 use crate::loader::*;
 use crate::colour::*;
 use crate::palette::*;
+use crate::dither::*;
 use crate::metadata;
 
 use std::io::{BufRead, Write};
@@ -89,6 +93,10 @@ fn process<'a, 'b>(mut stream: TcpStream, parser: clap::App<'a, 'b>,
         daemon_compute(&mut stream, matches);
         return;
     }
+    if let Some(matches) = matches.subcommand_matches("dither") {
+        daemon_dither(&mut stream, matches);
+        return;
+    }
 
     return abort(&mut stream, "Invalid command".into());
 }
@@ -130,7 +138,7 @@ fn palette_from_cmd<'a>(matches: &clap::ArgMatches<'a>, verbose: bool)
     let palette = match result {
         Ok(x) => { x }
         Err(e) => {
-            return Err(format!("Error while getting palette: {:?}", e));
+            return Err(format!("Error while getting palette: {}", e));
         }
     };
     return Ok(palette);
@@ -172,7 +180,7 @@ fn daemon_analyse<'a>(stream: &mut TcpStream, matches: &clap::ArgMatches<'a>,
     match check_palette(&palette.colours) {
         Ok(_) => {}
         Err(e) => {
-            return abort(stream, format!("Error while validating palette: {:?}", e));
+            return abort(stream, format!("Error while validating palette: {}", e));
         }
     }
 
@@ -247,4 +255,135 @@ fn daemon_compute<'a>(stream: &mut TcpStream, matches: &clap::ArgMatches<'a>) {
             let _ = stream.write(format!("{},{}\n", metric, v).as_bytes());
         }
     }
+}
+
+fn daemon_dither<'a>(stream: &mut TcpStream, matches: &clap::ArgMatches<'a>) {
+    let T: f32;
+    if let Some(D) = matches.value_of("D") {
+        match D {
+            "50" => { T = 5000.00 }
+            "55" => { T = 5500.00 }
+            "65" => { T = 6503.51 }
+            _ => {
+                return abort(stream, format!("Invalid illuminant preset: D{}", D));
+            }
+        }
+    } else {
+        T = match str::parse(matches.value_of("T").unwrap_or("5500")) {
+            Ok(x) => { x }
+            Err(e) => {
+                return abort(stream, format!("Error parsing temperature: {}", e));
+            }
+        };
+    }
+    let ill = CAT16Illuminant::new(CIExy::from_T(T));
+
+    let mut outfile: String = matches.value_of("outfile").unwrap().into();
+    if !outfile.ends_with(".png") {
+        outfile = format!("{}.png", outfile);
+    }
+
+    let palette = match palette_from_cmd(matches, false) {
+        Ok(x) => { x }
+        Err(e) => { return abort(stream, e); }
+    };
+    let palette = Palette::new(palette.colours.clone(), &ill, false);
+
+    let image_filename = matches.value_of("imageinput").unwrap();
+    let image = match load_image(image_filename.into()) {
+        Ok(x) => { x }
+        Err(e) => {
+            return abort(stream, format!("Error loading input image: {}", e));
+        }
+    };
+    let h = image.data.len() as u32;
+    let w = image.data[0].len() as u32;
+
+    let icc_profile = image.icc_profile;
+    let image_cam16: Vec<Vec<Option<CAM16UCS>>> = image.data.iter().map(
+        |row| row.iter().map(
+            |opt| opt.map(
+                |rgb| CAM16UCS::of(CIEXYZ::from(rgb), &ill)
+            )
+        ).collect()
+    ).collect();
+    let plot = PlotData::new(image_cam16);
+
+    let nodither_provided = matches.is_present("nodither");
+    let bayer_provided = matches.is_present("bayer");
+    let whitenoise_provided = matches.is_present("whitenoise");
+    let bluenoise_provided = matches.is_present("bluenoise");
+
+    let method = match () {
+        () if nodither_provided => { DitheringMethod::None }
+        () if bayer_provided => {
+            let n = match str::parse(matches.value_of("bayer").unwrap()) {
+                Ok(x) => { x }
+                Err(e) => {
+                    return abort(stream, format!("Could not parse Bayer matrix size: {}", e));
+                }
+            };
+            DitheringMethod::Bayer(n)
+        }
+        () if whitenoise_provided => {
+            let wxh = matches.value_of("whitenoise").unwrap();
+            let w: usize;
+            let h: usize;
+            scan!(wxh.bytes() => "{}x{}", w, h);
+            DitheringMethod::WhiteNoise(w, h)
+        }
+        () if bluenoise_provided => {
+            let wxh = matches.value_of("bluenoise").unwrap();
+            let w: usize;
+            let h: usize;
+            scan!(wxh.bytes() => "{}x{}", w, h);
+            DitheringMethod::BlueNoise(w, h)
+        }
+        () => { DitheringMethod::default() }
+    };
+
+    let dithered = Ditherer::dither(plot, &palette, method, false);
+
+    let mut image = RgbImage::new(w, h);
+    for y in 0..h {
+        for x in 0..w {
+            match dithered.data[y as usize][x as usize] {
+                Some(rgb) => {
+                    image.put_pixel(x, y, rgb.into());
+                }
+                None => {}
+            }
+        }
+    }
+    if let Err(e) = image.save(&outfile) {
+        return abort(stream, format!("Error saving output image: {}", e));
+    }
+
+    if let Some(ref icc_profile) = icc_profile {
+        let data = match std::fs::read(&outfile) {
+            Ok(x) => { x }
+            Err(_) => {
+                let _ = stream.write("OK\n".as_bytes());
+                return;
+            }
+        };
+        let mut png = match Png::from_bytes(data.into()) {
+            Ok(x) => { x }
+            Err(_) => {
+                let _ = stream.write("OK\n".as_bytes());
+                return;
+            }
+        };
+        png.set_icc_profile(Some(icc_profile.clone()));
+        let file = match std::fs::File::create(&outfile) {
+            Ok(x) => { x }
+            Err(_) => {
+                let _ = stream.write("OK\n".as_bytes());
+                return;
+            }
+        };
+        let _ = png.encoder().write_to(file);
+    }
+
+    let _ = stream.write("OK\n".as_bytes());
 }

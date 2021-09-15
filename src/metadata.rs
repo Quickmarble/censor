@@ -6,9 +6,12 @@ pub const VERSION_MAJOR: &str = env!("CARGO_PKG_VERSION_MAJOR");
 pub const VERSION_MINOR: &str = env!("CARGO_PKG_VERSION_MINOR");
 pub const VERSION_PATCH: &str = env!("CARGO_PKG_VERSION_PATCH");
 pub const VERSION: &str = formatcp!("{}.{}.{}", VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH);
+pub const REPO: &str = env!("CARGO_PKG_REPOSITORY");
 
 pub fn cmd_parser<'a, 'b>() -> App<'a, 'b> {
-    let (input_group, input_args) = palette_input_args();
+    let (palette_input_group, palette_input_args) = palette_input_args();
+    let image_input_args = image_input_args();
+    let (dither_groups, dither_args) = dither_args();
     let (interp_groups, interp_args) = interpretation_args();
     let (metrics_group, metrics_args) = metrics_args();
     let (repr_groups, repr_args) = representation_args();
@@ -30,8 +33,8 @@ pub fn cmd_parser<'a, 'b>() -> App<'a, 'b> {
     let analyse = SubCommand::with_name("analyse")
         .about("Produces a plot with palette analysis.")
         .arg(verbose.clone())
-        .group(input_group.clone())
-        .args(input_args.as_slice())
+        .group(palette_input_group.clone())
+        .args(palette_input_args.as_slice())
         .groups(interp_groups.as_slice())
         .args(interp_args.as_slice())
         .groups(repr_groups.as_slice())
@@ -48,33 +51,54 @@ pub fn cmd_parser<'a, 'b>() -> App<'a, 'b> {
         );
     let compute = SubCommand::with_name("compute")
         .about("Computes palette metrics.")
-        .group(input_group.clone())
-        .args(input_args.as_slice())
+        .group(palette_input_group.clone())
+        .args(palette_input_args.as_slice())
         .groups(interp_groups.as_slice())
         .args(interp_args.as_slice())
         .group(metrics_group.clone())
         .args(metrics_args.as_slice());
+    let dither = SubCommand::with_name("dither")
+        .about("Reduces image's colours using the provided palette.")
+        .arg(verbose.clone())
+        .group(palette_input_group.clone())
+        .args(palette_input_args.as_slice())
+        .groups(interp_groups.as_slice())
+        .args(interp_args.as_slice())
+        .groups(dither_groups.as_slice())
+        .args(dither_args.as_slice())
+        .args(image_input_args.as_slice())
+        .arg(
+            Arg::with_name("outfile")
+                .short("o")
+                .long("out")
+                .value_name("FILE")
+                .help("Sets output image file; default: plot.png")
+                .takes_value(true)
+        );
 
     let app = App::new("censor")
         .version(VERSION)
         .about("Palette analysis tool.")
         .subcommand(daemon)
         .subcommand(analyse)
-        .subcommand(compute);
+        .subcommand(compute)
+        .subcommand(dither);
 
     return app;
 }
 
 pub fn daemon_parser<'a, 'b>() -> App<'a, 'b> {
-    let (input_group, input_args) = palette_input_args();
+    let (palette_input_group, palette_input_args) = palette_input_args();
+    let image_input_args = image_input_args();
+    let (dither_groups, dither_args) = dither_args();
     let (interp_groups, interp_args) = interpretation_args();
     let (metrics_group, metrics_args) = metrics_args();
     let (repr_groups, repr_args) = representation_args();
 
     let analyse = SubCommand::with_name("analyse")
         .about("Produces a plot with palette analysis.")
-        .group(input_group.clone())
-        .args(input_args.as_slice())
+        .group(palette_input_group.clone())
+        .args(palette_input_args.as_slice())
         .groups(interp_groups.as_slice())
         .args(interp_args.as_slice())
         .groups(repr_groups.as_slice())
@@ -90,24 +114,43 @@ pub fn daemon_parser<'a, 'b>() -> App<'a, 'b> {
         );
     let compute = SubCommand::with_name("compute")
         .about("Computes palette metrics.")
-        .group(input_group.clone())
-        .args(input_args.as_slice())
+        .group(palette_input_group.clone())
+        .args(palette_input_args.as_slice())
         .groups(interp_groups.as_slice())
         .args(interp_args.as_slice())
         .group(metrics_group.clone())
         .args(metrics_args.as_slice());
+    let dither = SubCommand::with_name("dither")
+        .about("Reduces image's colours using the provided palette.")
+        .group(palette_input_group.clone())
+        .args(palette_input_args.as_slice())
+        .groups(interp_groups.as_slice())
+        .args(interp_args.as_slice())
+        .groups(dither_groups.as_slice())
+        .args(dither_args.as_slice())
+        .args(image_input_args.as_slice())
+        .arg(
+            Arg::with_name("outfile")
+                .short("o")
+                .long("out")
+                .value_name("FILE")
+                .help("Sets output image file")
+                .takes_value(true)
+                .required(true)
+        );
 
     let app = App::new("censor")
         .version(VERSION)
         .about("Palette analysis daemon.")
         .subcommand(analyse)
-        .subcommand(compute);
+        .subcommand(compute)
+        .subcommand(dither);
 
     return app;
 }
 
 fn palette_input_args<'a, 'b>() -> (ArgGroup<'a>, Vec<Arg<'a, 'b>>) {
-    let group = ArgGroup::with_name("input")
+    let group = ArgGroup::with_name("palette_input")
         .multiple(false)
         .required(true)
         .args(&["colours", "hexfile", "imagefile", "lospec"]);
@@ -138,6 +181,17 @@ fn palette_input_args<'a, 'b>() -> (ArgGroup<'a>, Vec<Arg<'a, 'b>>) {
             .takes_value(true)
     ];
     return (group, args);
+}
+
+fn image_input_args<'a, 'b>() -> Vec<Arg<'a, 'b>> {
+    let args = vec![
+        Arg::with_name("imageinput")
+            .value_name("FILE")
+            .help("Loads specified image")
+            .required(true)
+            .index(1)
+    ];
+    return args;
 }
 
 fn interpretation_args<'a, 'b>() -> (Vec<ArgGroup<'a>>, Vec<Arg<'a, 'b>>) {
@@ -200,6 +254,37 @@ fn computation_args<'a, 'b>() -> (Vec<ArgGroup<'a>>, Vec<Arg<'a, 'b>>) {
             .short("j")
             .long("multithreaded")
             .help("Does computations in multiple threads")
+    ];
+    return (groups, args);
+}
+
+fn dither_args<'a, 'b>() -> (Vec<ArgGroup<'a>>, Vec<Arg<'a, 'b>>) {
+    let groups = vec![
+        ArgGroup::with_name("dither_method")
+            .multiple(false)
+            .required(false)
+            .args(&["nodither", "bayer", "whitenoise", "bluenoise"])
+    ];
+    let args = vec![
+        Arg::with_name("nodither")
+            .short("0")
+            .long("nodither")
+            .help("Do no dithering - only colour reduction"),
+        Arg::with_name("bayer")
+            .long("bayer")
+            .value_name("N")
+            .help("Uses a Bayer matrix of size 2^N for ordered dithering")
+            .takes_value(true),
+        Arg::with_name("whitenoise")
+            .long("whitenoise")
+            .value_name("WxH")
+            .help("Uses a white noise matrix of size WxH for ordered dithering")
+            .takes_value(true),
+        Arg::with_name("bluenoise")
+            .long("bluenoise")
+            .value_name("WxH")
+            .help("Uses a blue noise matrix of size WxH for ordered dithering")
+            .takes_value(true)
     ];
     return (groups, args);
 }

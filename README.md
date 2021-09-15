@@ -82,11 +82,30 @@ $ echo "analyse -l antiquity16 -o plot.png" | nc localhost 9876
 On success, `OK` is returned. On error, `ERR` is returned and
 more error info is printed in the next lines and also into daemon's `stderr`.
 
+### `censor dither`
+Reduces provided image's palette to the specified one.
+Palette input, illuminant, output file options are the same.
+The dithering method is determined by the following options:
+`--nodither` results in finding the nearest colour for each pixel;
+`--bayer N` results in ordered dithering with Bayer matrix of size 2^N;
+`--whitenoise WxH` results in ordered dithering with a white noise of size WxH;
+`--bluenoise WxH` results in ordered dithering with a blue noise of size WxH.
+By default, blue noise of size 14x14 is applied - that is expected to be frequently
+changed.
+Other methods will be added.
+
+You are also required to provide a path to the input image.
+Note that the resulting image will always be in PNG format.
+
+An example of a valid image dithering command:
+`$ censor dither mona_lisa.jpg -l warmlight --bluenoise 18x18 -o mona_lisa.dithered.png`
+
 ## Features
 - Analyse palettes of 2-256 colours
 - All widgets use CAM16UCS with perceptual colour distances
 - Load colours from command line arguments, text files, images and Lospec
 - Daemon mode for large amounts of analysis requests
+- Image dithering
 - WASM support for analysing palettes on web pages client-side (currently broken)
 
 ## Widgets available
